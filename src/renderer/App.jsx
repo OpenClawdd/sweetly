@@ -302,10 +302,11 @@ function getWordProgress(word, currentTime) {
 }
 
 function KaraokeWord({ word, lineIndex, wordIndex, registerWordRef }) {
+  const isParenthetical = typeof word?.text === "string" && (word.text.trim().startsWith("(") || word.text.trim().endsWith(")"));
   return (
     <span
       ref={(el) => registerWordRef(lineIndex, wordIndex, el)}
-      className="word"
+      className={`word ${isParenthetical ? "parenthetical-word" : ""}`}
     >
       <span className="word-base">{word.text}</span>
       <span className="word-fill">{word.text}</span>
