@@ -58,86 +58,108 @@ export function parseTTMLData(apiResponse, provider = "apple") {
       continue;
     }
 
-    const mainWords = [];
-    const bgWords = [];
+    // Clause & Inline Parenthetical Parser
+    let currentMain = [];
+    let currentBg = [];
     let inParen = false;
 
     for (const w of line.words) {
       const txt = w.text ? w.text.trim() : "";
       if (IS_SECTION_TAG.test(txt)) {
-        mainWords.push(w);
+        currentMain.push(w);
         continue;
       }
-      if (txt.startsWith("(") || inParen) {
-        inParen = true;
-        const cleanTxt = txt.replace(/^\(/, "").replace(/\)$/, "").trim();
+
+      const hasOpen = txt.includes("(");
+      const hasClose = txt.includes(")");
+
+      if (hasOpen || inParen) {
+        inParen = !hasClose;
+        const cleanTxt = txt.replace(/[\(\)]/g, "").replace(/^[\,\.\?\!\:\;]+|[\,\.\?\!\:\;]+$/g, "").trim();
         if (cleanTxt && !IS_SECTION_TAG.test(cleanTxt)) {
-          bgWords.push({ ...w, text: cleanTxt });
-        } else if (cleanTxt) {
-          mainWords.push(w);
+          currentBg.push({ ...w, text: cleanTxt });
         }
-        if (txt.endsWith(")")) {
-          inParen = false;
+        if (!inParen && currentBg.length > 0) {
+          // Flush current main phrase and bg phrase
+          if (currentMain.length > 0) {
+            splitRawLines.push({
+              ...line,
+              words: [...currentMain],
+              startTime: currentMain[0].startTime,
+              endTime: currentMain[currentMain.length - 1].endTime,
+              isBackground: false,
+            });
+            currentMain = [];
+          }
+          splitRawLines.push({
+            ...line,
+            words: [...currentBg],
+            startTime: currentBg[0].startTime,
+            endTime: currentBg[currentBg.length - 1].endTime,
+            isBackground: true,
+          });
+          currentBg = [];
         }
       } else {
-        mainWords.push(w);
+        currentMain.push(w);
       }
     }
 
-    const INTERJECTIONS = /^(boom[-]?boom|slop|slap|skrrt|yeah|yea|uh|uh-huh|woah|whoa|ay|aye|brrr|brrt|pew|pop|bitch|gang|bop|ha|haha|flex|blat|slatt|yah|yup|oh|no|wait|look|say|hol'?\s*up|hold\s*up|go)$/i;
+    if (currentMain.length > 0) {
+      const mainWords = [...currentMain];
+      const bgWords = [];
+      const INTERJECTIONS = /^(boom[-]?boom|slop|slap|skrrt|yeah|yea|uh|uh-huh|woah|whoa|ay|aye|brrr|brrt|pew|pop|bitch|gang|bop|ha|haha|flex|blat|slatt|yah|yup|oh|no|wait|look|say|hol'?\s*up|hold\s*up|go)$/i;
 
-    // Detect mid-line ad-libs or capitalized interjections after main phrase (e.g. "nosebleeds Go, that's right", "thought you was for me Ha, go", "rewrite my story, hol' up")
-    if (mainWords.length >= 3 && bgWords.length === 0) {
-      let splitIdx = -1;
-      for (let k = 1; k < mainWords.length - 1; k++) {
-        const prevTxt = mainWords[k].text ? mainWords[k].text.trim() : "";
-        const nextRaw = mainWords[k + 1].text ? mainWords[k + 1].text.trim() : "";
-        const nextClean = nextRaw.replace(/[\(\)\,\.\?!]/g, "");
+      // Detect mid-line ad-libs or capitalized interjections after main phrase
+      if (mainWords.length >= 3) {
+        let splitIdx = -1;
+        for (let k = 1; k < mainWords.length - 1; k++) {
+          const prevTxt = mainWords[k].text ? mainWords[k].text.trim() : "";
+          const nextRaw = mainWords[k + 1].text ? mainWords[k + 1].text.trim() : "";
+          const nextClean = nextRaw.replace(/[\(\)\,\.\?!]/g, "");
 
-        // 1. Post terminal punctuation (? !)
-        if (/[\?!]$/.test(prevTxt) && nextRaw) {
-          splitIdx = k + 1;
-          break;
+          if (/[\?!]$/.test(prevTxt) && nextRaw) {
+            splitIdx = k + 1;
+            break;
+          }
+          if (INTERJECTIONS.test(nextClean)) {
+            splitIdx = k + 1;
+            break;
+          }
+          if (k >= 2 && /^[A-Z][a-z]/.test(nextClean) && !/^(I|I'm|I've|I'll|I'd|A|The|And|But|So|Or|My|Your|Our)$/.test(nextClean)) {
+            splitIdx = k + 1;
+            break;
+          }
         }
-        // 2. Interjection sound words (e.g. "hol' up", "Ha", "Go", "Boom-boom")
-        if (INTERJECTIONS.test(nextClean)) {
-          splitIdx = k + 1;
-          break;
-        }
-        // 3. Mid-sentence Capitalized word after 3+ words (e.g. "nosebleeds Go, that's right" where 'Go' is capitalized)
-        if (k >= 2 && /^[A-Z][a-z]/.test(nextClean) && !/^(I|I'm|I've|I'll|I'd|A|The|And|But|So|Or|My|Your|Our)$/.test(nextClean)) {
-          splitIdx = k + 1;
-          break;
-        }
-      }
 
-      if (splitIdx > 0 && splitIdx < mainWords.length) {
-        const adlibPart = mainWords.splice(splitIdx);
-        for (const w of adlibPart) {
-          const cleanTxt = w.text ? w.text.replace(/^\(/, "").replace(/\)$/, "").trim() : "";
-          if (cleanTxt) {
-            bgWords.push({ ...w, text: cleanTxt });
+        if (splitIdx > 0 && splitIdx < mainWords.length) {
+          const adlibPart = mainWords.splice(splitIdx);
+          for (const w of adlibPart) {
+            const cleanTxt = w.text ? w.text.replace(/[\(\)]/g, "").trim() : "";
+            if (cleanTxt) {
+              bgWords.push({ ...w, text: cleanTxt });
+            }
           }
         }
       }
-    }
 
-    if (mainWords.length > 0) {
       splitRawLines.push({
         ...line,
         words: mainWords,
+        startTime: mainWords[0].startTime,
         endTime: mainWords[mainWords.length - 1].endTime,
+        isBackground: false,
       });
-    }
 
-    if (bgWords.length > 0) {
-      splitRawLines.push({
-        ...line,
-        words: bgWords,
-        startTime: bgWords[0].startTime,
-        endTime: bgWords[bgWords.length - 1].endTime,
-        isBackground: true,
-      });
+      if (bgWords.length > 0) {
+        splitRawLines.push({
+          ...line,
+          words: bgWords,
+          startTime: bgWords[0].startTime,
+          endTime: bgWords[bgWords.length - 1].endTime,
+          isBackground: true,
+        });
+      }
     }
   }
 
