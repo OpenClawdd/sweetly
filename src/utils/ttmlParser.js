@@ -84,20 +84,28 @@ export function parseTTMLData(apiResponse, provider = "apple") {
       }
     }
 
-    const ADLIB_WORDS = /^(boom[-]?boom|slop|slap|skrrt|yeah|uh|uh-huh|woah|ay|aye|brrr|brrt|pew|pop|bitch|gang|bop|ha|haha|whoa|flex|blat|slatt|yah|yup)$/i;
+    const INTERJECTIONS = /^(boom[-]?boom|slop|slap|skrrt|yeah|yea|uh|uh-huh|woah|whoa|ay|aye|brrr|brrt|pew|pop|bitch|gang|bop|ha|haha|flex|blat|slatt|yah|yup|oh|no|wait|look|say|hol'?\s*up|hold\s*up|go)$/i;
 
-    // Detect trailing ad-libs after terminal punctuation (?, !) or sound words (e.g. "What I gotta do to show you wrong? Boom-boom")
-    if (mainWords.length > 1 && bgWords.length === 0) {
+    // Detect mid-line ad-libs or capitalized interjections after main phrase (e.g. "nosebleeds Go, that's right", "thought you was for me Ha, go", "rewrite my story, hol' up")
+    if (mainWords.length >= 3 && bgWords.length === 0) {
       let splitIdx = -1;
-      for (let k = 0; k < mainWords.length - 1; k++) {
+      for (let k = 1; k < mainWords.length - 1; k++) {
         const prevTxt = mainWords[k].text ? mainWords[k].text.trim() : "";
-        const nextTxt = mainWords[k + 1].text ? mainWords[k + 1].text.trim() : "";
+        const nextRaw = mainWords[k + 1].text ? mainWords[k + 1].text.trim() : "";
+        const nextClean = nextRaw.replace(/[\(\)\,\.\?!]/g, "");
 
-        if (/[\?!]$/.test(prevTxt) && nextTxt) {
+        // 1. Post terminal punctuation (? !)
+        if (/[\?!]$/.test(prevTxt) && nextRaw) {
           splitIdx = k + 1;
           break;
         }
-        if (k > 0 && ADLIB_WORDS.test(nextTxt.replace(/[\(\)\,\.\?!]/g, ""))) {
+        // 2. Interjection sound words (e.g. "hol' up", "Ha", "Go", "Boom-boom")
+        if (INTERJECTIONS.test(nextClean)) {
+          splitIdx = k + 1;
+          break;
+        }
+        // 3. Mid-sentence Capitalized word after 3+ words (e.g. "nosebleeds Go, that's right" where 'Go' is capitalized)
+        if (k >= 2 && /^[A-Z][a-z]/.test(nextClean) && !/^(I|I'm|I've|I'll|I'd|A|The|And|But|So|Or|My|Your|Our)$/.test(nextClean)) {
           splitIdx = k + 1;
           break;
         }
