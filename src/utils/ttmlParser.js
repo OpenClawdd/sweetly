@@ -232,15 +232,44 @@ function groupSyllablesIntoWords(syllables) {
   let currentWord = null;
 
   for (const syl of syllables) {
+    const rawTxt = syl.Text || "";
+
+    if (rawTxt.includes(" ")) {
+      if (currentWord) {
+        finalizeWord(currentWord);
+        words.push(currentWord);
+        currentWord = null;
+      }
+      const parts = rawTxt.split(/\s+/).filter(Boolean);
+      const start = syl.StartTime ?? 0;
+      const end = syl.EndTime ?? start;
+      const totalLen = rawTxt.length || 1;
+      let cur = start;
+
+      for (let p = 0; p < parts.length; p++) {
+        const partText = parts[p];
+        const partDur = (end - start) * (partText.length / totalLen);
+        words.push({
+          text: partText,
+          startTime: cur,
+          endTime: cur + partDur,
+          isPartOfWord: false,
+          isLetterGroup: false,
+        });
+        cur += partDur;
+      }
+      continue;
+    }
+
     if (!currentWord) {
       currentWord = {
-        text: syl.Text || "",
+        text: rawTxt,
         startTime: syl.StartTime ?? 0,
         endTime: syl.EndTime ?? 0,
         isPartOfWord: syl.IsPartOfWord === true,
       };
     } else {
-      currentWord.text += syl.Text || "";
+      currentWord.text += rawTxt;
       currentWord.endTime = syl.EndTime ?? currentWord.endTime;
       currentWord.isPartOfWord = true;
     }

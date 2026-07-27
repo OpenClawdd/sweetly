@@ -165,7 +165,7 @@ const LOADER_BAR = {
 const RIGHT_PANEL = {
   flex: 1, height: "100vh", overflowY: "auto", overflowX: "visible",
   scrollbarWidth: "none", position: "relative", zIndex: 9, WebkitAppRegion: "no-drag",
-  padding: "0 72px 0 48px",
+  padding: "0 36px 0 24px", width: "100%",
   maskImage: "linear-gradient(to bottom, transparent 0%, transparent 16px, black 64px, black calc(100% - 64px), transparent calc(100% - 16px), transparent 100%)",
   WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, transparent 16px, black 64px, black calc(100% - 64px), transparent calc(100% - 16px), transparent 100%)",
 };
@@ -191,7 +191,7 @@ const LYRIC_LINE = {
 
 const WORD_BASE = {
   fontWeight: 700, lineHeight: 1.35,
-  fontSize: "clamp(1.8rem, 3.4vw, 3.8rem)", display: "inline",
+  fontSize: "clamp(2.2rem, 3.8vw, 4.4rem)", display: "inline",
   letterSpacing: "0.01em", marginRight: "0.25em",
   WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
   backgroundClip: "text",
