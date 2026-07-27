@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "ELECTRON_DISABLE_SANDBOX=1 electron-vite dev",
     "start": "ELECTRON_DISABLE_SANDBOX=1 electron-vite dev",
-    "build": "electron-vite build"
+    "build": "electron-vite build",
+    "convert-lyrics": "node scripts/convert-whisperx.js"
   },
   "dependencies": {
     "@kawarp/core": "^1.2.0",
