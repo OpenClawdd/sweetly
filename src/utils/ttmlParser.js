@@ -11,16 +11,32 @@ export function parseTTMLData(apiResponse) {
 
   for (const contentLine of apiResponse.Content) {
     const lead = contentLine.Lead;
-    if (!lead || !lead.Syllables) continue;
+    if (lead && lead.Syllables && lead.Syllables.length > 0) {
+      const words = groupSyllablesIntoWords(lead.Syllables);
+      if (words.length > 0) {
+        rawLines.push({
+          words,
+          startTime: lead.StartTime ?? contentLine.StartTime ?? 0,
+          endTime: lead.EndTime ?? contentLine.EndTime ?? 0,
+          oppositeAligned: contentLine.OppositeAligned === true,
+          isBackground: lead.IsBackground === true,
+        });
+      }
+    }
 
-    const words = groupSyllablesIntoWords(lead.Syllables);
-    rawLines.push({
-      words,
-      startTime: lead.StartTime,
-      endTime: lead.EndTime,
-      oppositeAligned: contentLine.OppositeAligned === true,
-      isBackground: lead.IsBackground === true,
-    });
+    const bg = contentLine.Background;
+    if (bg && bg !== lead && bg.Syllables && bg.Syllables.length > 0) {
+      const words = groupSyllablesIntoWords(bg.Syllables);
+      if (words.length > 0) {
+        rawLines.push({
+          words,
+          startTime: bg.StartTime ?? contentLine.StartTime ?? 0,
+          endTime: bg.EndTime ?? contentLine.EndTime ?? 0,
+          oppositeAligned: contentLine.OppositeAligned === true,
+          isBackground: true,
+        });
+      }
+    }
   }
 
   // Insert instrumental gap dot lines for gaps >= 3.0 seconds
