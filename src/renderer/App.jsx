@@ -317,38 +317,36 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, accent }) {
   const scrollRef = useRef(null);
   const isUserScrollingRef = useRef(false);
   const userScrollTimerRef = useRef(null);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
   const { line: activeLine } = activeIndices || {};
 
-  const lineRefs = useRef(new Map());
-  const wordRefs = useRef(new Map());
-  const letterRefs = useRef(new Map());
-  const dotRefs = useRef(new Map());
-
-  const lineSpringsMap = useRef(new Map());
-  const scrollSpringRef = useRef(new Spring(0, 3, 0.65));
-  const targetScrollRef = useRef(0);
-  const wasUserScrollingRef = useRef(false);
+  const activeLineRef = useRef(activeLine);
+  activeLineRef.current = activeLine;
 
   const currentTimeRef = useRef(currentTime);
   currentTimeRef.current = currentTime;
+
   const accentRef = useRef(accent);
   accentRef.current = accent;
 
-  const registerLineRef = useCallback((idx, el) => {
-    if (el) lineRefs.current.set(idx, el);
-    else lineRefs.current.delete(idx);
+  const lineRefs = useRef(new Map());
+  const wordRefs = useRef(new Map());
+  const dotRefs = useRef(new Map());
+
+  const scrollSpringRef = useRef(new Spring(0, 3, 0.65));
+  const targetScrollRef = useRef(0);
+  const wasUserScrollingRef = useRef(false);
+  const lineSpringsMap = useRef(new Map());
+
+  const registerLineRef = useCallback((li, el) => {
+    if (el) lineRefs.current.set(li, el);
+    else lineRefs.current.delete(li);
   }, []);
 
   const registerWordRef = useCallback((li, wi, el) => {
     const key = `${li}-${wi}`;
     if (el) wordRefs.current.set(key, el);
     else wordRefs.current.delete(key);
-  }, []);
-
-  const registerLetterRef = useCallback((li, wi, ki, el) => {
-    const key = `${li}-${wi}-${ki}`;
-    if (el) letterRefs.current.set(key, el);
-    else letterRefs.current.delete(key);
   }, []);
 
   const registerDotRef = useCallback((li, di, el) => {
@@ -359,18 +357,34 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, accent }) {
 
   const handleUserScroll = useCallback(() => {
     isUserScrollingRef.current = true;
+    setIsUserScrolling(true);
     if (userScrollTimerRef.current) clearTimeout(userScrollTimerRef.current);
     userScrollTimerRef.current = setTimeout(() => {
       isUserScrollingRef.current = false;
-    }, 3500);
+      setIsUserScrolling(false);
+    }, 4000);
   }, []);
+
+  const handleResumeSync = useCallback(() => {
+    isUserScrollingRef.current = false;
+    setIsUserScrolling(false);
+    if (userScrollTimerRef.current) clearTimeout(userScrollTimerRef.current);
+    if (scrollRef.current && activeLine != null && activeLine >= 0) {
+      const lineEl = lineRefs.current.get(activeLine);
+      if (lineEl) {
+        const container = scrollRef.current;
+        const target = Math.max(0, lineEl.offsetTop - container.clientHeight * 0.5 + lineEl.offsetHeight * 0.5);
+        scrollSpringRef.current = new Spring(container.scrollTop, 3.5, 0.65);
+        scrollSpringRef.current.SetGoal(target);
+      }
+    }
+  }, [activeLine]);
 
   const lines = parsedLyrics?.lines;
   const lineCount = lines?.length || 0;
 
-  // Active line scroll target calculation
   useEffect(() => {
-    if (activeLine == null || activeLine < 0 || !scrollRef.current) return;
+    if (activeLine == null || activeLine < 0 || !scrollRef.current || isUserScrollingRef.current) return;
     const lineEl = lineRefs.current.get(activeLine);
     if (!lineEl) return;
     const container = scrollRef.current;
@@ -379,7 +393,6 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, accent }) {
     scrollSpringRef.current.SetGoal(target);
   }, [activeLine]);
 
-  // Main 60fps rAF Animation & Scroll Loop
   useEffect(() => {
     if (!lines || lineCount === 0) return;
     let running = true;
@@ -395,7 +408,6 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, accent }) {
       const accentColor = accentRef.current || "#ffffff";
       const activeLineIdx = activeLine ?? -1;
 
-      // 1. Scroll Spring Handling
       if (isUserScrollingRef.current !== wasUserScrollingRef.current) {
         wasUserScrollingRef.current = isUserScrollingRef.current;
         if (!isUserScrollingRef.current && scrollRef.current) {
@@ -410,7 +422,6 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, accent }) {
         }
       }
 
-      // 2. Element Springs & Styles Loop
       for (let li = 0; li < lineCount; li++) {
         const line = lines[li];
         const lineEl = lineRefs.current.get(li);
@@ -421,7 +432,6 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, accent }) {
         const isLineActive = li === activeLineIdx;
         const dist = Math.abs(li - activeLineIdx);
 
-        // Line Springs (Opacity, Blur)
         let lineSprings = lineSpringsMap.current.get(li);
         if (!lineSprings) {
           lineSprings = {
@@ -431,16 +441,7 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, accent }) {
           lineSpringsMap.current.set(li, lineSprings);
         }
 
-        let opacityGoal;
-        if (isLineActive) {
-          opacityGoal = isBackground ? 0.75 : 1.0;
-        } else if (li < activeLineIdx) {
-          const base = isBackground ? 0.45 : Math.max(0.48, 0.88 - dist * 0.10);
-          opacityGoal = isBackground ? Math.max(0.35, base - dist * 0.05) : base;
-        } else {
-          const base = isBackground ? 0.35 : Math.max(0.42, 0.75 - dist * 0.10);
-          opacityGoal = base;
-        }
+        let opacityGoal = isLineActive ? (isBackground ? 0.75 : 1.0) : (li < activeLineIdx ? (isBackground ? 0.45 : Math.max(0.48, 0.88 - dist * 0.10)) : (isBackground ? 0.35 : Math.max(0.42, 0.75 - dist * 0.10)));
 
         lineSprings.opacity.SetGoal(opacityGoal);
         lineSprings.blur.SetGoal(isLineActive ? 0 : Math.min(6.25, dist * 1.25));
@@ -448,76 +449,18 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, accent }) {
         const curOpacity = lineSprings.opacity.Step(dt);
         const curBlur = lineSprings.blur.Step(dt);
 
-        setStyleIfChanged(lineEl, "opacity", `${curOpacity}`, 0.005);
-        setStyleIfChanged(lineEl, "--BlurAmount", `${curBlur}px`, 0.25);
-        setStyleIfChanged(lineEl, "filter", curBlur > 0.02 ? `blur(${curBlur}px)` : "none", 0.25);
+        setStyleIfChanged(lineEl, "opacity", `${curOpacity}`, 0.001);
+        setStyleIfChanged(lineEl, "filter", curBlur > 0.1 ? `blur(${curBlur.toFixed(2)}px)` : "none");
 
-        if (isLineActive && !lineEl.classList.contains("active")) {
-          lineEl.classList.add("active");
-        } else if (!isLineActive && lineEl.classList.contains("active")) {
-          lineEl.classList.remove("active");
-        }
-
-        if (curOpacity < 0.015 && !isLineActive) {
-          setStyleIfChanged(lineEl, "visibility", "hidden");
-          continue;
-        } else {
-          setStyleIfChanged(lineEl, "visibility", "visible");
-        }
-
-        // 3. Dot Line Animation
         if (isDotLine && line.dots) {
           for (let di = 0; di < line.dots.length; di++) {
             const dot = line.dots[di];
             const dotEl = dotRefs.current.get(`${li}-${di}`);
             if (!dotEl || !dotEl.isConnected) continue;
-
-            if (!dot.AnimatorStore) {
-              dot.AnimatorStore = createDotSprings();
-              dot.AnimatorStore.Scale.SetGoal(DotScaleSpline.at(0), true);
-              dot.AnimatorStore.YOffset.SetGoal(DotYOffsetSpline.at(0), true);
-              dot.AnimatorStore.Glow.SetGoal(DotGlowSpline.at(0), true);
-              dot.AnimatorStore.Opacity.SetGoal(DotOpacitySpline.at(0), true);
-            }
-
             const dotState = getElementState(curTime, dot.startTime, dot.endTime);
             const dotPct = getProgressPercentage(curTime, dot.startTime, dot.endTime);
-
-            let tScale, tYOffset, tGlow, tOpacity;
-            if (dotState === "Active") {
-              tScale = DotScaleSpline.at(dotPct);
-              tYOffset = DotYOffsetSpline.at(dotPct);
-              tGlow = DotGlowSpline.at(dotPct);
-              tOpacity = DotOpacitySpline.at(dotPct);
-            } else if (dotState === "NotSung") {
-              tScale = DotScaleSpline.at(0);
-              tYOffset = DotYOffsetSpline.at(0);
-              tGlow = DotGlowSpline.at(0);
-              tOpacity = DotOpacitySpline.at(0);
-            } else {
-              tScale = DotScaleSpline.at(1);
-              tYOffset = DotYOffsetSpline.at(1);
-              tGlow = DotGlowSpline.at(1);
-              tOpacity = DotOpacitySpline.at(1);
-            }
-
-            dot.AnimatorStore.Scale.SetGoal(tScale);
-            dot.AnimatorStore.YOffset.SetGoal(tYOffset);
-            dot.AnimatorStore.Glow.SetGoal(tGlow);
-            dot.AnimatorStore.Opacity.SetGoal(tOpacity);
-
-            const cScale = dot.AnimatorStore.Scale.Step(dt);
-            const cYOffset = dot.AnimatorStore.YOffset.Step(dt);
-            const cGlow = dot.AnimatorStore.Glow.Step(dt);
-            const cOpacity = dot.AnimatorStore.Opacity.Step(dt);
-
             const bgSweep = dotState === "Sung" ? 100 : (dotState === "Active" ? (dotPct * 100).toFixed(1) : 0);
             const fillEl = dotEl.children[1];
-
-            setStyleIfChanged(dotEl, "transform", `translate3d(0, calc(1em * ${cYOffset}), 0)`, 0.001);
-            setStyleIfChanged(dotEl, "scale", `${cScale}`, 0.001);
-            setStyleIfChanged(dotEl, "opacity", `${cOpacity}`, 0.001);
-
             if (fillEl) {
               setStyleIfChanged(fillEl, "--sweep", `${bgSweep}%`);
               setStyleIfChanged(fillEl, "--accent-color", accentColor);
@@ -526,156 +469,56 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, accent }) {
           continue;
         }
 
-        // 4. Regular Line Words & Letters Animation
         if (!line.words) continue;
-
         for (let wi = 0; wi < line.words.length; wi++) {
           const word = line.words[wi];
           const wordEl = wordRefs.current.get(`${li}-${wi}`);
-
           const wordState = getElementState(curTime, word.startTime, word.endTime);
           const wordPct = getProgressPercentage(curTime, word.startTime, word.endTime);
-
-          if (word.isLetterGroup && word.letters) {
-            let activeLetterIdx = -1;
-            let activeLetterPct = 0;
-            for (let ki = 0; ki < word.letters.length; ki++) {
-              if (getElementState(curTime, word.letters[ki].startTime, word.letters[ki].endTime) === "Active") {
-                activeLetterIdx = ki;
-                activeLetterPct = getProgressPercentage(curTime, word.letters[ki].startTime, word.letters[ki].endTime);
-                break;
-              }
-            }
-
-            for (let ki = 0; ki < word.letters.length; ki++) {
-              const letter = word.letters[ki];
-              const letterEl = letterRefs.current.get(`${li}-${wi}-${ki}`);
-              if (!letterEl || !letterEl.isConnected) continue;
-
-              if (!letter.AnimatorStore) {
-                letter.AnimatorStore = createLetterSprings();
-                letter.AnimatorStore.Scale.SetGoal(LetterScaleSpline.at(0), true);
-                letter.AnimatorStore.YOffset.SetGoal(LetterYOffsetSpline.at(0), true);
-                letter.AnimatorStore.Glow.SetGoal(GlowSpline.at(0), true);
-              }
-
-              const letterState = getElementState(curTime, letter.startTime, letter.endTime);
-              const letterPct = getProgressPercentage(curTime, letter.startTime, letter.endTime);
-
-              let tScale = LetterScaleSpline.at(0);
-              let tYOffset = LetterYOffsetSpline.at(0);
-              let tGlow = GlowSpline.at(0);
-              let tGrad = -20;
-
-              if (activeLetterIdx !== -1) {
-                const baseScale = LetterScaleSpline.at(activeLetterPct);
-                const baseYOffset = LetterYOffsetSpline.at(activeLetterPct);
-                const baseGlow = GlowSpline.at(activeLetterPct);
-                const restScale = LetterScaleSpline.at(0);
-                const restYOffset = LetterYOffsetSpline.at(0);
-                const restGlow = GlowSpline.at(0);
-
-                const distance = Math.abs(ki - activeLetterIdx);
-                const falloff = Math.max(0, 1 / (1 + Math.pow(distance, 2.8)));
-                const glowFalloff = Math.max(0, 1 / (1 + distance * 0.9));
-
-                tScale = restScale + (baseScale - restScale) * falloff;
-                tYOffset = restYOffset + (baseYOffset - restYOffset) * falloff;
-                tGlow = restGlow + (baseGlow - restGlow) * glowFalloff;
-              }
-
-              if (letterState === "NotSung") {
-                tScale = LetterScaleSpline.at(0);
-                tYOffset = LetterYOffsetSpline.at(0);
-                tGlow = GlowSpline.at(0);
-                tGrad = -20;
-              } else if (letterState === "Sung") {
-                if (activeLetterIdx === -1) tGlow = SungLetterGlow;
-                tGrad = 100;
-              } else {
-                tGrad = ki === activeLetterIdx ? -20 + 120 * easeSinOut(letterPct) : -20;
-              }
-
-              letter.AnimatorStore.Scale.SetGoal(tScale);
-              letter.AnimatorStore.YOffset.SetGoal(tYOffset);
-              letter.AnimatorStore.Glow.SetGoal(tGlow);
-
-              const cScale = letter.AnimatorStore.Scale.Step(dt);
-              const cYOffset = letter.AnimatorStore.YOffset.Step(dt);
-              const cGlow = letter.AnimatorStore.Glow.Step(dt);
-
-              const sweepPct = Math.max(0, Math.min(100, tGrad));
-              const fillEl = letterEl.children[1];
-
-              setStyleIfChanged(letterEl, "transform", `translate3d(0, calc(1em * ${cYOffset * 2}), 0)`, 0.001);
-              setStyleIfChanged(letterEl, "scale", `${cScale}`, 0.001);
-
-              if (fillEl) {
-                setStyleIfChanged(fillEl, "--sweep", `${sweepPct.toFixed(1)}%`);
-                setStyleIfChanged(fillEl, "color", accentColor);
-                setStyleIfChanged(fillEl, "--text-shadow-blur-radius", `${4 + 12 * cGlow}px`, 0.5);
-                setStyleIfChanged(fillEl, "--text-shadow-opacity", `${cGlow * LetterGlowMultiplier_Opacity}%`, 1);
-              }
-            }
+          if (!wordEl || !wordEl.isConnected) continue;
+          if (!word.AnimatorStore) {
+            word.AnimatorStore = createWordSprings();
+            word.AnimatorStore.Scale.SetGoal(ScaleSpline.at(0), true);
+            word.AnimatorStore.YOffset.SetGoal(YOffsetSpline.at(0), true);
+            word.AnimatorStore.Glow.SetGoal(GlowSpline.at(0), true);
+          }
+          let tScale, tYOffset, tGlow, tGrad;
+          if (wordState === "Active") {
+            tScale = ScaleSpline.at(wordPct);
+            tYOffset = YOffsetSpline.at(wordPct);
+            tGlow = GlowSpline.at(wordPct);
+            tGrad = -20 + 120 * wordPct;
+          } else if (wordState === "NotSung") {
+            tScale = ScaleSpline.at(0);
+            tYOffset = YOffsetSpline.at(0);
+            tGlow = GlowSpline.at(0);
+            tGrad = -20;
           } else {
-            if (!wordEl || !wordEl.isConnected) continue;
-
-            if (!word.AnimatorStore) {
-              word.AnimatorStore = createWordSprings();
-              word.AnimatorStore.Scale.SetGoal(ScaleSpline.at(0), true);
-              word.AnimatorStore.YOffset.SetGoal(YOffsetSpline.at(0), true);
-              word.AnimatorStore.Glow.SetGoal(GlowSpline.at(0), true);
-            }
-
-            let tScale, tYOffset, tGlow, tGrad;
-            if (wordState === "Active") {
-              tScale = ScaleSpline.at(wordPct);
-              tYOffset = YOffsetSpline.at(wordPct);
-              tGlow = GlowSpline.at(wordPct);
-              tGrad = -20 + 120 * wordPct;
-            } else if (wordState === "NotSung") {
-              tScale = ScaleSpline.at(0);
-              tYOffset = YOffsetSpline.at(0);
-              tGlow = GlowSpline.at(0);
-              tGrad = -20;
-            } else {
-              tScale = ScaleSpline.at(1);
-              tYOffset = YOffsetSpline.at(1);
-              tGlow = GlowSpline.at(1);
-              tGrad = 100;
-            }
-
-            word.AnimatorStore.Scale.SetGoal(tScale);
-            word.AnimatorStore.YOffset.SetGoal(tYOffset);
-            word.AnimatorStore.Glow.SetGoal(tGlow);
-
-            const cScale = word.AnimatorStore.Scale.Step(dt);
-            const cYOffset = word.AnimatorStore.YOffset.Step(dt);
-            const cGlow = word.AnimatorStore.Glow.Step(dt);
-
-            const sweepPct = Math.max(0, Math.min(100, tGrad));
-            const fillEl = wordEl.children[1];
-
-            setStyleIfChanged(wordEl, "transform", `translate3d(0, calc(1em * ${cYOffset}), 0)`, 0.001);
-            setStyleIfChanged(wordEl, "scale", `${cScale}`, 0.001);
-
-            if (fillEl) {
-              setStyleIfChanged(fillEl, "--sweep", `${sweepPct.toFixed(1)}%`);
-              setStyleIfChanged(fillEl, "--accent-color", accentColor);
-            }
+            tScale = ScaleSpline.at(1);
+            tYOffset = YOffsetSpline.at(1);
+            tGlow = GlowSpline.at(1);
+            tGrad = 100;
+          }
+          word.AnimatorStore.Scale.SetGoal(tScale);
+          word.AnimatorStore.YOffset.SetGoal(tYOffset);
+          word.AnimatorStore.Glow.SetGoal(tGlow);
+          const cScale = word.AnimatorStore.Scale.Step(dt);
+          const cYOffset = word.AnimatorStore.YOffset.Step(dt);
+          const sweepPct = Math.max(0, Math.min(100, tGrad));
+          const fillEl = wordEl.children[1];
+          setStyleIfChanged(wordEl, "transform", `translate3d(0, calc(1em * ${cYOffset}), 0)`, 0.001);
+          setStyleIfChanged(wordEl, "scale", `${cScale}`, 0.001);
+          if (fillEl) {
+            setStyleIfChanged(fillEl, "--sweep", `${sweepPct.toFixed(1)}%`);
+            setStyleIfChanged(fillEl, "--accent-color", accentColor);
           }
         }
       }
-
       flushStyleBatch();
       frameId = requestAnimationFrame(tick);
     };
-
     frameId = requestAnimationFrame(tick);
-    return () => {
-      running = false;
-      cancelAnimationFrame(frameId);
-    };
+    return () => { running = false; cancelAnimationFrame(frameId); };
   }, [lines, lineCount, activeLine]);
 
   useEffect(() => {
@@ -697,6 +540,7 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, accent }) {
       <div style={LYRICS_INNER}>
         {lines.map((line, li) => {
           const isBackground = line.isBackground === true;
+          const isOpposite = line.oppositeAligned === true;
           const isDotLine = line.isDotLine === true;
           const isActiveLine = li === activeLine;
 
@@ -714,7 +558,7 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, accent }) {
                       key={di}
                       ref={(el) => registerDotRef(li, di, el)}
                       className="dot"
-                      onClick={() => { if (dot.startTime >= 0) window.electronAPI?.seekTo(dot.startTime); }}
+                      onClick={(e) => { e.stopPropagation(); if (dot.startTime >= 0) window.electronAPI?.seekTo(dot.startTime); }}
                     >
                       <span className="dot-base">•</span>
                       <span className="dot-fill">•</span>
@@ -732,12 +576,8 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, accent }) {
             <div
               key={`line-${li}`}
               ref={(el) => registerLineRef(li, el)}
-              className={`lyric-line ${isActiveLine ? "active" : ""}`}
+              className={`lyric-line ${isActiveLine ? "active" : ""} ${isBackground ? "background-vocal" : ""} ${isOpposite ? "opposite-aligned" : ""}`}
               onClick={() => { if (lineStartTime >= 0) window.electronAPI?.seekTo(lineStartTime); }}
-              style={{
-                fontStyle: isBackground ? "italic" : "normal",
-                fontSize: isBackground ? "0.80em" : "inherit",
-              }}
             >
               {words.map((w, wi) => (
                 <KaraokeWord
@@ -746,13 +586,18 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, accent }) {
                   lineIndex={li}
                   wordIndex={wi}
                   registerWordRef={registerWordRef}
-                  registerLetterRef={registerLetterRef}
                 />
               ))}
             </div>
           );
         })}
       </div>
+      {isUserScrolling && (
+        <button className="resume-sync-btn" onClick={handleResumeSync}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 9V3M3 5l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          Resume Sync
+        </button>
+      )}
     </div>
   );
 }
@@ -786,6 +631,63 @@ function ArtworkImage({ url }) {
   );
 }
 
+function SettingsModal({ isOpen, onClose }) {
+  const [token, setToken] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === "Escape" && isOpen) onClose();
+      if ((e.metaKey || e.ctrlKey) && e.key === ",") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const handleSaveToken = async () => {
+    if (!token.trim()) return;
+    const ok = await window.electronAPI?.setMediaUserToken?.(token.trim());
+    if (ok) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
+  };
+
+  return (
+    <div className="settings-overlay" onClick={onClose}>
+      <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="settings-header">
+          <div className="settings-title">Sweetly Settings</div>
+          <button style={TOGGLE_BTN} onClick={onClose}>✕</button>
+        </div>
+        <div style={{ fontSize: "0.85rem", opacity: 0.7, marginBottom: 8 }}>
+          Apple Music Media User Token (Word-level Lyrics API)
+        </div>
+        <input
+          type="password"
+          className="settings-input"
+          placeholder="Paste media-user-token here..."
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+        />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: "0.8rem", color: saved ? "#27c93f" : "transparent" }}>
+            Token saved successfully!
+          </div>
+          <button style={{ ...TOGGLE_BTN, background: "rgba(255,255,255,0.15)", padding: "6px 16px", borderRadius: 8 }} onClick={handleSaveToken}>
+            Save Token
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [state, setState] = useState({ status: "closed" });
   const [parsedLyrics, setParsedLyrics] = useState(null);
@@ -795,6 +697,7 @@ function App() {
   const [displayAccent, setDisplayAccent] = useState(null);
   const [fontsReady, setFontsReady] = useState(false);
   const [kawarpReady, setKawarpReady] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [artFloatY, setArtFloatY] = useState(0);
 
   const accentVelRef = useRef(0);
@@ -814,6 +717,17 @@ function App() {
   const isPausedRef = useRef(true);
   const playbackRateRef = useRef(1);
   const [currentTime, setCurrentTime] = useState(0);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === ",") {
+        e.preventDefault();
+        setShowSettings((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
 
   useEffect(() => {
     log("App: waiting for fonts...");
@@ -1132,9 +1046,14 @@ function App() {
       <canvas ref={kawarpCanvasRef} style={{ ...kawarpBgStyle, opacity: kawarpReady ? 1 : 0, transition: "opacity 0.5s" }} />
       <div style={VIGNETTE} />
       <div style={GRAIN} />
-      <div style={HEADER}>
+      <div style={HEADER} onDoubleClick={() => window.electronAPI?.toggleFullscreen?.()}>
+        <div className="mac-traffic-lights">
+          <button className="mac-btn mac-close" onClick={() => window.close()} title="Close Window" />
+          <button className="mac-btn mac-minimize" onClick={() => window.electronAPI?.toggleFullscreen?.()} title="Minimize Window" />
+          <button className="mac-btn mac-expand" onClick={() => window.electronAPI?.toggleFullscreen?.()} title="Toggle Fullscreen" />
+        </div>
         <div style={STATUS_BADGE}>{statusLabel}</div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <button style={TOGGLE_BTN} onClick={() => window.electronAPI?.previousTrack?.()} title="Previous Track">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11 2v10L5 7zM3 2v10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </button>
@@ -1143,6 +1062,9 @@ function App() {
           </button>
           <button style={TOGGLE_BTN} onClick={() => window.electronAPI?.nextTrack?.()} title="Next Track">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 2v10l6-5zM11 2v10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </button>
+          <button style={TOGGLE_BTN} onClick={() => setShowSettings(true)} title="Settings (Cmd+,)">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.2"/><path d="M7 1.5v1.5M7 11v1.5M1.5 7h1.5M11 7h1.5M3.1 3.1l1.1 1.1M9.8 9.8l1.1 1.1M3.1 10.9l1.1-1.1M9.8 4.2l1.1-1.1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
           </button>
           <button style={TOGGLE_BTN} onClick={() => window.electronAPI?.toggleFullscreen?.()} title="Toggle Fullscreen (Cmd+Shift+F)">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -1174,6 +1096,7 @@ function App() {
           </div>
         </div>
       )}
+      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
       {DEBUG && <div style={DEBUG_BAR}>{debugInfo}</div>}
     </div>
   );
