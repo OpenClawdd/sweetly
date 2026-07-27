@@ -84,6 +84,36 @@ export function parseTTMLData(apiResponse, provider = "apple") {
       }
     }
 
+    const ADLIB_WORDS = /^(boom[-]?boom|slop|slap|skrrt|yeah|uh|uh-huh|woah|ay|aye|brrr|brrt|pew|pop|bitch|gang|bop|ha|haha|whoa|flex|blat|slatt|yah|yup)$/i;
+
+    // Detect trailing ad-libs after terminal punctuation (?, !) or sound words (e.g. "What I gotta do to show you wrong? Boom-boom")
+    if (mainWords.length > 1 && bgWords.length === 0) {
+      let splitIdx = -1;
+      for (let k = 0; k < mainWords.length - 1; k++) {
+        const prevTxt = mainWords[k].text ? mainWords[k].text.trim() : "";
+        const nextTxt = mainWords[k + 1].text ? mainWords[k + 1].text.trim() : "";
+
+        if (/[\?!]$/.test(prevTxt) && nextTxt) {
+          splitIdx = k + 1;
+          break;
+        }
+        if (k > 0 && ADLIB_WORDS.test(nextTxt.replace(/[\(\)\,\.\?!]/g, ""))) {
+          splitIdx = k + 1;
+          break;
+        }
+      }
+
+      if (splitIdx > 0 && splitIdx < mainWords.length) {
+        const adlibPart = mainWords.splice(splitIdx);
+        for (const w of adlibPart) {
+          const cleanTxt = w.text ? w.text.replace(/^\(/, "").replace(/\)$/, "").trim() : "";
+          if (cleanTxt) {
+            bgWords.push({ ...w, text: cleanTxt });
+          }
+        }
+      }
+    }
+
     if (mainWords.length > 0) {
       splitRawLines.push({
         ...line,
