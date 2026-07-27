@@ -156,15 +156,42 @@ The fetch pipeline in `main/lyrics/` is unchanged. Only the handoff moves:
 
 1. `utils/Lyrics/fetchLyrics.ts` is replaced by an Electron variant that calls
    the existing `electronAPI` bridge.
-2. The returned TTML goes through Spicy's own
-   `utils/Lyrics/manager/parseTTML.ts`.
-3. The parsed result is passed to stock `ApplyLyrics`
+2. The result is normalised locally into Spicy's parsed shape.
+3. The normalised result is passed to stock `ApplyLyrics`
    (`utils/Lyrics/Global/Applyer.ts`).
 
-Feeding Spicy's parser rather than adapting `ttmlParser.js` output means the
-`Syllable` / `Line` / `Static` shapes are native, which is what makes the
-word-level animation identical rather than merely similar. `ttmlParser.js` is
-deleted.
+**Correction to an earlier draft of this spec.** Step 2 originally proposed
+routing TTML through Spicy's `utils/Lyrics/manager/parseTTML.ts`. That is not a
+local parser — it calls `Query()` against `Defaults.lyrics.api.url`, Spicy's
+hosted API. Using it would send every locally-stored custom TTML to a third
+party's server to be parsed, adding latency, breaking offline use, and leaning
+on someone else's service for work that belongs on this machine. It is not used.
+
+Instead, a local converter emits Spicy's shapes directly. The target types, read
+from the applyers, are:
+
+```ts
+// Syllable — utils/Lyrics/Applyer/Synced/Syllable.ts
+{ Type: "Syllable", StartTime: number, Content: Array<{
+    Lead: { StartTime: number, EndTime: number, Syllables: Array<{
+      Text: string, StartTime: number, EndTime: number,
+      IsPartOfWord?: boolean, TransliteratedText?: string }> },
+    Background?: Array<{ StartTime, EndTime, Syllables: [...] }>,
+    OppositeAligned?: boolean }>,
+  SongWriters?: string[], source?: "spt" | "spl" | "aml" }
+
+// Line — utils/Lyrics/Applyer/Synced/Line.ts
+{ Type: "Line", StartTime: number, Content: Array<{
+    Text: string, StartTime: number, EndTime: number,
+    TransliteratedText?: string, OppositeAligned?: boolean }> }
+
+// Static — utils/Lyrics/Applyer/Static.ts
+{ Type: "Static", Lines: Array<{ Text: string, TransliteratedText?: string }> }
+```
+
+Lyrics fetched from Spicy's own API already arrive in these shapes and need no
+conversion. Only locally-sourced TTML — custom files and aligner output — goes
+through the converter. `ttmlParser.js` is superseded by it and deleted.
 
 Aligner output already passes through `main/lyrics/ttmlXml.js`, so it enters
 through the same door as fetched lyrics.
@@ -268,6 +295,13 @@ Electron window.
 
 ## Risks
 
+- **Import-time DOM polling.** `SpotifyPlayer.Playbar` runs three IIFEs at import
+  that `setTimeout`-retry every 300ms forever looking for `.main-nowPlayingBar-*`
+  elements, and `Platform.ts`'s `OnSpotifyReady` spins a `requestAnimationFrame`
+  loop until `Spicetify.Platform` appears. Neither element nor global exists in
+  Electron, so both would loop indefinitely. The adapter must stub `Playbar` and
+  resolve `OnSpotifyReady` eagerly. This is a resource-efficiency bug, not just a
+  correctness one, and it is easy to miss because nothing visibly breaks.
 - **`PageView` container assumptions.** It attaches to a Spotify page root and
   branches on `CardMode`, `TippyMode` and PIP. The Electron window is a simpler
   container, so those branches need checking. Not load-bearing on the lyrics view.
