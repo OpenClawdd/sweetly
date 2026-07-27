@@ -592,6 +592,10 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, accent }) {
             </div>
           );
         })}
+        <div className="lyrics-footer">
+          <div className="footer-provider">Provided by: Spicy Lyrics</div>
+          <div className="footer-community">These lyrics have been provided by our community</div>
+        </div>
       </div>
       {isUserScrolling && (
         <button className="resume-sync-btn" onClick={handleResumeSync}>
