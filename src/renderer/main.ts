@@ -40,32 +40,22 @@ function trackKey(): string | null {
 }
 
 async function start(): Promise<void> {
-  const [
-    pageViewModule,
-    dynamicBgModule,
-    fontsModule,
-    nowBarModule,
-    applyerModule,
-    progressModule,
-  ] = await Promise.all([
-    import("../components/Pages/PageView.ts"),
-    import("../components/DynamicBG/dynamicBackground.ts"),
-    import("../components/Styling/Fonts.ts"),
-    import("../components/Utils/NowBar.ts"),
-    import("../utils/Lyrics/Global/Applyer.ts"),
-    import("../utils/Gets/GetProgress.ts"),
-  ]);
-
-  const PageView = pageViewModule.default;
-  const ApplyDynamicBackground = dynamicBgModule.default;
-  const LoadFonts = fontsModule.default;
-  const { ApplyFontPixel } = fontsModule;
-  const { UpdateNowBar } = nowBarModule;
-  const ApplyLyrics = applyerModule.default;
+  // One dynamic import of the barrel, not several in parallel — see upstream.ts
+  // for why the evaluation order matters.
+  const {
+    PageView,
+    ApplyDynamicBackground,
+    LoadFonts,
+    ApplyFontPixel,
+    UpdateNowBar,
+    ApplyLyrics,
+    GetProgress,
+    requestPositionSync,
+  } = await import("./upstream.ts");
 
   // Hand upstream's smoothed clock to the adapter. Doing it here rather than by
   // import avoids an ESM cycle — see the comment in AppleMusicPlayer.ts.
-  setProgressProvider(progressModule.default);
+  setProgressProvider(GetProgress);
 
   const { fetchLyricsForCurrentTrack } = await import("./lyrics/fetchLyricsElectron.ts");
   const { installViewControlBehaviour } = await import("./adapter/viewControls.ts");
@@ -94,7 +84,7 @@ async function start(): Promise<void> {
 
   onMusicStateChange((state) => {
     UpdateNowBar();
-    progressModule.requestPositionSync();
+    requestPositionSync();
 
     const key = state.track ? `${state.track.artistCleaned}--${state.track.nameCleaned}` : null;
     if (key === lastKey) return;

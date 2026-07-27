@@ -155,6 +155,17 @@ function createWindow() {
     console.log("[Sweetly-Main] Page finished loading");
   });
 
+  // The renderer hosts Spicy's whole UI now, so a module-scope throw there is
+  // invisible against a transparent window — nothing renders and nothing logs.
+  // Forward its console to the terminal so failures are diagnosable.
+  mainWindow.webContents.on("console-message", (event) => {
+    const levels = ["debug", "info", "warning", "error"];
+    const level = levels[event.level] ?? event.level;
+    if (level === "error" || level === "warning") {
+      console.log(`[Renderer:${level}] ${event.message}  (${event.sourceId}:${event.line})`);
+    }
+  });
+
   mainWindow.on("closed", () => {
     console.log("[Sweetly-Main] Window closed");
     if (stopPoll) {

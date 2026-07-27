@@ -63,6 +63,46 @@ describe("normaliseLyricsResponse", () => {
     expect((content as any).Type).toBe("Static");
   });
 
+  test("wraps a single Background object into the array Syllable.ts expects", () => {
+    const [content] = normaliseLyricsResponse({
+      data: {
+        Type: "Syllable",
+        Content: [
+          {
+            Lead: { StartTime: 0, EndTime: 1, Syllables: [] },
+            Background: { StartTime: 0, EndTime: 1, Syllables: [] },
+          },
+        ],
+      },
+      provider: "spicylyrics",
+      artworkUrl: null,
+    });
+    expect(Array.isArray((content as any).Content[0].Background)).toBe(true);
+    expect((content as any).Content[0].Background).toHaveLength(1);
+  });
+
+  test("leaves an already-array Background untouched", () => {
+    const background = [{ StartTime: 0, EndTime: 1, Syllables: [] }];
+    const [content] = normaliseLyricsResponse({
+      data: {
+        Type: "Syllable",
+        Content: [{ Lead: { StartTime: 0, EndTime: 1, Syllables: [] }, Background: background }],
+      },
+      provider: "spicylyrics",
+      artworkUrl: null,
+    });
+    expect((content as any).Content[0].Background).toEqual(background);
+  });
+
+  test("leaves lines with no Background alone", () => {
+    const [content] = normaliseLyricsResponse({
+      data: { Type: "Syllable", Content: [{ Lead: { StartTime: 0, EndTime: 1, Syllables: [] } }] },
+      provider: "spicylyrics",
+      artworkUrl: null,
+    });
+    expect((content as any).Content[0].Background).toBeUndefined();
+  });
+
   test("reports not-found for a null response", () => {
     expect(normaliseLyricsResponse(null)).toEqual(["lyrics-not-found", 404]);
   });

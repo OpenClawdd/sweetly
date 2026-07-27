@@ -69,6 +69,11 @@ export function installSpicetifyShim(): void {
     Platform: {
       version: "1.2.0",
       History: { push: () => {}, goBack: () => {}, listen: () => () => {} },
+      // GetProgress.ts reads PlaybackAPI._isLocal to decide whether the local
+      // clock is authoritative or it must sync against a remote device. Apple
+      // Music plays on this machine, so local is always correct — and saying so
+      // skips the remote-sync path that has nothing to talk to.
+      PlaybackAPI: { _isLocal: true },
     },
     Keyboard: { registerImportantShortcut: () => {}, ValidKeys: {} },
     CosmosAsync: { get: async () => ({}), post: async () => ({}) },

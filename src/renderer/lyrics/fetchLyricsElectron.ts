@@ -22,11 +22,29 @@ export type LyricsResult = [SpicyLyrics | string, number];
  * leading musical-dots line. Comparing against undefined silently skips it, so
  * derive the value from the first entry instead.
  */
-function withStartTime(data: Record<string, any>): SpicyLyrics {
-  if (typeof data.StartTime === "number") return data as SpicyLyrics;
+function withStartTime(data: Record<string, any>): Record<string, any> {
+  if (typeof data.StartTime === "number") return data;
   const first = data.Content?.[0];
   const derived = first?.Lead?.StartTime ?? first?.StartTime ?? 0;
-  return { ...data, StartTime: derived } as SpicyLyrics;
+  return { ...data, StartTime: derived };
+}
+
+/**
+ * Syllable.ts treats every line's Background as an array — `line.Background
+ * ?.some(...)` at line 90, `.forEach(...)` at 322. Some of our sources emit a
+ * single object instead, which throws "Background?.some is not a function" and
+ * kills the whole render. Normalise rather than patching upstream.
+ */
+function withArrayBackgrounds(data: Record<string, any>): SpicyLyrics {
+  if (data.Type !== "Syllable" || !Array.isArray(data.Content)) return data as SpicyLyrics;
+
+  const Content = data.Content.map((line: any) => {
+    if (!line || line.Background === undefined || line.Background === null) return line;
+    if (Array.isArray(line.Background)) return line;
+    return { ...line, Background: [line.Background] };
+  });
+
+  return { ...data, Content } as SpicyLyrics;
 }
 
 /** Pure. Everything testable about the fetch path lives here. */
@@ -45,7 +63,7 @@ export function normaliseLyricsResponse(response: unknown): LyricsResult {
   }
 
   if (typeof data === "object" && typeof data.Type === "string") {
-    return [withStartTime(data), 200];
+    return [withArrayBackgrounds(withStartTime(data)), 200];
   }
 
   return ["unknown-error", 500];
