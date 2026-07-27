@@ -1,8 +1,7 @@
 // Type definitions made by @DefinitelyTyped (on Github)
 
 declare namespace pako {
-  enum constants {
-    // FlushValues
+  enum FlushValues {
     Z_NO_FLUSH = 0,
     Z_PARTIAL_FLUSH = 1,
     Z_SYNC_FLUSH = 2,
@@ -10,13 +9,17 @@ declare namespace pako {
     Z_FINISH = 4,
     Z_BLOCK = 5,
     Z_TREES = 6,
-    // StrategyValues
+  }
+
+  enum StrategyValues {
     Z_FILTERED = 1,
     Z_HUFFMAN_ONLY = 2,
     Z_RLE = 3,
     Z_FIXED = 4,
     Z_DEFAULT_STRATEGY = 0,
-    // ReturnCodes
+  }
+
+  enum ReturnCodes {
     Z_OK = 0,
     Z_STREAM_END = 1,
     Z_NEED_DICT = 2,
@@ -26,30 +29,29 @@ declare namespace pako {
     Z_BUF_ERROR = -5,
   }
 
-  type FlushValues =
-    | constants.Z_NO_FLUSH
-    | constants.Z_PARTIAL_FLUSH
-    | constants.Z_SYNC_FLUSH
-    | constants.Z_FINISH
-    | constants.Z_BLOCK
-    | constants.Z_TREES;
+  type FlushValuesType =
+    | FlushValues.Z_NO_FLUSH
+    | FlushValues.Z_PARTIAL_FLUSH
+    | FlushValues.Z_SYNC_FLUSH
+    | FlushValues.Z_FINISH
+    | FlushValues.Z_BLOCK
+    | FlushValues.Z_TREES;
 
-  type StrategyValues =
-    | constants.Z_FILTERED
-    | constants.Z_HUFFMAN_ONLY
-    | constants.Z_RLE
-    | constants.Z_FIXED
-    | constants.Z_DEFAULT_STRATEGY;
+  type StrategyValuesType =
+    | StrategyValues.Z_FILTERED
+    | StrategyValues.Z_HUFFMAN_ONLY
+    | StrategyValues.Z_RLE
+    | StrategyValues.Z_FIXED
+    | StrategyValues.Z_DEFAULT_STRATEGY;
 
-  type ReturnCodes =
-    | constants.Z_OK
-    | constants.Z_STREAM_END
-    | constants.Z_NEED_DICT
-    | constants.Z_ERRNO
-    | constants.Z_STREAM_ERROR
-    | constants.Z_DATA_ERROR
-    | constants.Z_BUF_ERROR
-    | constants.Z_DEFAULT_STRATEGY;
+  type ReturnCodesType =
+    | ReturnCodes.Z_OK
+    | ReturnCodes.Z_STREAM_END
+    | ReturnCodes.Z_NEED_DICT
+    | ReturnCodes.Z_ERRNO
+    | ReturnCodes.Z_STREAM_ERROR
+    | ReturnCodes.Z_DATA_ERROR
+    | ReturnCodes.Z_BUF_ERROR;
 
   interface DeflateOptions {
     level?: -1 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | undefined;

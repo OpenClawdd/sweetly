@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { fetchAppleMusicState, pollAppleMusic, setPlayerPosition, togglePlayPause, skipToNext, skipToPrevious } from "./appleMusic.js";
 import { setMediaUserToken } from "./appleMusicApi.js";
 import { fetchLyricsData } from "./lyrics/fetcher.js";
-import { getCustomLyrics, saveCustomLyrics } from "./lyrics/sources/custom.js";
+import { saveCustomLyrics } from "./lyrics/sources/custom.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PRELOAD_PATH = path.join(__dirname, "../../build/preload/index.js");
