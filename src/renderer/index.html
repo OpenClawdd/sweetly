@@ -43,7 +43,7 @@
         padding: 6px 16px;
         margin: 4px -16px;
         border-radius: 14px;
-        transition: background 0.3s cubic-bezier(0.25, 1, 0.5, 1), transform 0.25s ease, opacity 0.25s ease;
+        transition: transform 0.25s ease, opacity 0.25s ease;
         will-change: transform, opacity, filter;
         cursor: pointer;
         position: relative;
@@ -52,14 +52,18 @@
         box-sizing: border-box;
         background: transparent !important;
         background-color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
       }
-      .lyric-line.active {
-        background: rgba(255, 255, 255, 0.045) !important;
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-      }
-      .lyric-line:hover {
-        background: rgba(255, 255, 255, 0.06) !important;
+      .lyric-line.active, .lyric-line:hover {
+        background: transparent !important;
+        background-color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
       }
 
       .word, .dot {
@@ -76,6 +80,7 @@
         cursor: pointer;
         background: transparent !important;
         background-color: transparent !important;
+        border: none !important;
         box-shadow: none !important;
         will-change: transform, opacity;
       }
@@ -99,7 +104,7 @@
         font-style: normal !important;
         background: transparent !important;
         background-color: transparent !important;
-        text-shadow: 0 0 14px var(--accent-color, rgba(255, 255, 255, 0.85)), 0 0 28px var(--accent-color, rgba(255, 255, 255, 0.45));
+        text-shadow: 0 0 16px rgba(255, 255, 255, 0.5), 0 2px 8px rgba(0, 0, 0, 0.5);
         clip-path: inset(0 calc(100% - var(--sweep, 0%)) 0 0);
         -webkit-clip-path: inset(0 calc(100% - var(--sweep, 0%)) 0 0);
         pointer-events: none;
