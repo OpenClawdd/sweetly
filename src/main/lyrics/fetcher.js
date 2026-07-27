@@ -17,7 +17,19 @@ export async function fetchLyricsData(name, artist) {
   // Fetch Apple Music catalog search in parallel for album artwork
   const appleResultPromise = findAppleMusicLyrics(name, artist);
 
-  // 1. Query SpicyLyrics API FIRST for community-provided TTMLs!
+  // 1. Query Spicy-Sparks lrc-api / BiniLyrics FIRST for community TTMLs!
+  try {
+    const biniLyrics = await fetchBiniLyrics(name, artist);
+    if (biniLyrics) {
+      console.log("[Sweetly-Main] Successfully fetched community TTML from Spicy-Sparks/lrc-api for:", name);
+      const appleResult = await appleResultPromise;
+      return { data: biniLyrics, artworkUrl: appleResult?.artworkUrl || null };
+    }
+  } catch (e) {
+    console.log("[Sweetly-Main] Spicy-Sparks lrc-api fetch attempt failed:", e.message);
+  }
+
+  // 2. Query SpicyLyrics API for community TTMLs
   try {
     const spotifyId = await scrapeSpotifySearch(`${name} ${artist}`) || await scrapeSpotifySearch(name);
     if (spotifyId) {
