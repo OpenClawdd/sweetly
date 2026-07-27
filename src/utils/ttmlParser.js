@@ -193,9 +193,6 @@ export function parseTTMLData(apiResponse, provider = "apple") {
         });
       }
     }
-    if (line.words) {
-      ensureWordLevelTimings(line);
-    }
     lines.push(line);
   }
 

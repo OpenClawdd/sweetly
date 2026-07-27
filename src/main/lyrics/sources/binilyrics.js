@@ -11,7 +11,7 @@ export async function fetchBiniLyrics(name, artist) {
     const results = data?.results;
     if (!results?.length) return null;
 
-    const wordMatch = results.find((r) => r.timing_type === "word") || results[0];
+    const wordMatch = results.find((r) => r.timing_type === "word");
     if (!wordMatch?.lyricsUrl) return null;
 
     console.log("[Sweetly-Main] BiniLyrics:", wordMatch.track_name, wordMatch.artist_name, wordMatch.timing_type);
