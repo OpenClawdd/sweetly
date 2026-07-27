@@ -195,12 +195,19 @@ export const SpotifyPlayer = {
     Next: (): void => api().nextTrack?.(),
     Prev: (): void => api().previousTrack?.(),
   },
+  // Upstream both reads and *writes* these (NowBar.ts assigns after toggling),
+  // so a getter alone throws "Cannot set property … which has only a getter" —
+  // and that uncaught throw aborts the lyrics render. Music.app remains the
+  // source of truth, so the setters are accepted and discarded; the next poll
+  // reports the real state a beat later.
   get LoopType(): string {
     return getMusicState().repeat;
   },
+  set LoopType(_value: string) {},
   get ShuffleType(): string {
     return getMusicState().shuffle ? "smart" : "none";
   },
+  set ShuffleType(_value: string) {},
   IsDJ: (): boolean => false,
   IsLiked: (): boolean => getMusicState().favorited,
   ToggleLike: async (): Promise<void> => {

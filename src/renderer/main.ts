@@ -31,6 +31,15 @@ import {
 } from "./adapter/musicState.ts";
 import { setProgressProvider } from "./adapter/AppleMusicPlayer.ts";
 
+// The shim's PlayerAPI._contextPlayer.getPositionState needs the raw player
+// position, but the shim must not import the adapter (it is installed before
+// upstream loads). A global hand-off keeps the dependency one-way.
+(globalThis as any).__sweetlyRawPositionMs = () => {
+  const track = getMusicState().track;
+  return track ? track.position * 1000 : 0;
+};
+(globalThis as any).__sweetlyIsPlaying = () => getMusicState().status === "playing";
+
 installSpicetifyShim();
 
 function trackKey(): string | null {
@@ -80,6 +89,54 @@ async function start(): Promise<void> {
     if (background) void ApplyDynamicBackground(background);
 
     await ApplyLyrics(result as any);
+
+    // Temporary: report why lyrics are or are not visible. The applyers fail
+    // silently — they return early on a false store rather than throwing — so
+    // the DOM is the only place the answer actually lives.
+    setTimeout(() => {
+      const page = document.querySelector<HTMLElement>("#SpicyLyricsPage");
+      const container = document.querySelector<HTMLElement>(".LyricsContainer");
+      const content = document.querySelector<HTMLElement>(".LyricsContent");
+      const line = document.querySelector<HTMLElement>(".line");
+      console.log(
+        "[Sweetly] dom:",
+        JSON.stringify({
+          pageClasses: page?.className ?? null,
+          pageSize: page ? [page.clientWidth, page.clientHeight] : null,
+          containerClasses: container?.className ?? null,
+          containerSize: container ? [container.clientWidth, container.clientHeight] : null,
+          contentChildren: content?.childElementCount ?? null,
+          contentSize: content ? [content.clientWidth, content.clientHeight] : null,
+          lineCount: document.querySelectorAll(".line").length,
+          lineFontSize: line ? getComputedStyle(line).fontSize : null,
+          lineOpacity: line ? getComputedStyle(line).opacity : null,
+          lineText: line?.textContent?.slice(0, 40) ?? null,
+          lineRect: line
+            ? (() => {
+                const r = line.getBoundingClientRect();
+                return [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)];
+              })()
+            : null,
+          // opacity does not inherit into getComputedStyle, so a zeroed
+          // ancestor is invisible from the line's own styles. Walk up.
+          ancestry: line
+            ? (() => {
+                const chain: string[] = [];
+                let el: HTMLElement | null = line;
+                while (el && chain.length < 8) {
+                  const cs = getComputedStyle(el);
+                  chain.push(
+                    `${el.tagName.toLowerCase()}.${(el.className || "-").toString().split(" ").join(".")}` +
+                      ` op=${cs.opacity} vis=${cs.visibility} disp=${cs.display} col=${cs.color}`,
+                  );
+                  el = el.parentElement;
+                }
+                return chain;
+              })()
+            : null,
+        }),
+      );
+    }, 2500);
   }
 
   onMusicStateChange((state) => {

@@ -7,7 +7,7 @@
     <!-- pkgs.spikerko.org serves the romanization engines (Kuromoji, pinyin,
          aromanize, GreekRomanization) that Spicy loads on demand via
          utils/ImportPackage.ts, hence script-src and connect-src. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://pkgs.spikerko.org; style-src 'self' 'unsafe-inline' https://fonts.spikerko.org; font-src 'self' https://fonts.spikerko.org; connect-src 'self' https://open.spotify.com https://api.spotify.com https://api.spicylyrics.org https://pkgs.spikerko.org https://lrclib.net https://lyrics-api.binimum.org https://lyrics-storage.binimum.org ws://localhost:*; img-src 'self' https://is1-ssl.mzstatic.com https://*.mzstatic.com https://images.spikerko.org data: blob:" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://pkgs.spikerko.org; style-src 'self' 'unsafe-inline' https://fonts.spikerko.org; font-src 'self' https://fonts.spikerko.org; connect-src 'self' https://open.spotify.com https://api.spotify.com https://api.spicylyrics.org https://pkgs.spikerko.org https://images.spikerko.org https://is1-ssl.mzstatic.com https://*.mzstatic.com https://lrclib.net https://lyrics-api.binimum.org https://lyrics-storage.binimum.org ws://localhost:*; img-src 'self' https://is1-ssl.mzstatic.com https://*.mzstatic.com https://images.spikerko.org data: blob:" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sweetly</title>
     <link rel="stylesheet" href="https://fonts.spikerko.org/spicy-lyrics/source.css" />
@@ -24,6 +24,24 @@
         width: 100vw;
         height: 100vh;
         overflow: hidden;
+      }
+      /* Spicy sizes the entire page in container-query units — see
+         css/ContentBox.css: --NowBarWidth: min(30cqw, 52cqh),
+         --LyricsLeftSidePadding: 18cqw, --default-font-size: calc(1cqw * 3).
+         Inside Spotify the containing block is .os-host, which PageView.ts:299
+         gives `container-type: inline-size` — but only when it mounts itself
+         (AppendTo === undefined). We pass an explicit mount, so that branch
+         never runs and every cq unit resolves to zero, which renders the lyrics
+         at zero size: applied, no errors, invisible. Establish the context here. */
+      #app {
+        container-type: size;
+      }
+      /* Spicy's lyric styles inherit currentColor. Inside Spotify the white
+         comes from Spotify's own body colour; standalone, the default is black,
+         which renders the lyrics invisibly against the artwork gradient — at
+         full size and opacity, so nothing looks broken. */
+      body {
+        color: #fff;
       }
     </style>
   </head>

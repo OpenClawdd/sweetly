@@ -45,6 +45,10 @@ export function installSpicetifyShim(): void {
       next: () => api().nextTrack?.(),
       back: () => api().previousTrack?.(),
       getHeart: () => false,
+      // GetProgress calls this as a function (upstream's SpotifyPlayer.IsPlaying
+      // is a property — they are not the same thing). Throwing here kills the
+      // whole lyrics render, so it must exist.
+      isPlaying: () => (globalThis as any).__sweetlyIsPlaying?.() ?? false,
       data: null,
     },
 
@@ -74,6 +78,18 @@ export function installSpicetifyShim(): void {
       // Music plays on this machine, so local is always correct — and saying so
       // skips the remote-sync path that has nothing to talk to.
       PlaybackAPI: { _isLocal: true },
+      // requestPositionSync walks PlayerAPI._contextPlayer.getPositionState()
+      // for a precise clock sample. Apple Music has no equivalent, so report the
+      // position the poller already gave us and let GetProgress smooth it.
+      PlayerAPI: {
+        _contextPlayer: {
+          getPositionState: async () => ({
+            position: (globalThis as any).__sweetlyRawPositionMs?.() ?? 0,
+          }),
+          resume: async () => {},
+        },
+        _state: { positionAsOfTimestamp: 0, timestamp: Date.now() },
+      },
     },
     Keyboard: { registerImportantShortcut: () => {}, ValidKeys: {} },
     CosmosAsync: { get: async () => ({}), post: async () => ({}) },

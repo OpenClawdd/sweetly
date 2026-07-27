@@ -86,7 +86,17 @@ export async function fetchLyricsForCurrentTrack(): Promise<LyricsResult> {
     // Artwork rides along on this response — AppleScript gives us no image.
     setArtworkUrl(response?.artworkUrl ?? null);
 
-    return normaliseLyricsResponse(response);
+    const result = normaliseLyricsResponse(response);
+    const [content] = result;
+    console.log(
+      "[Sweetly] lyrics:",
+      typeof content === "string"
+        ? content
+        : `${content.Type} (${
+            (content as any).Content?.length ?? (content as any).Lines?.length ?? 0
+          } lines) via ${response?.provider}`,
+    );
+    return result;
   } catch (error) {
     console.error("[Sweetly] lyrics fetch failed:", error);
     return ["unknown-error", 500];

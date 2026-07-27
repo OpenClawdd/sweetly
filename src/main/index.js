@@ -161,7 +161,7 @@ function createWindow() {
   mainWindow.webContents.on("console-message", (event) => {
     const levels = ["debug", "info", "warning", "error"];
     const level = levels[event.level] ?? event.level;
-    if (level === "error" || level === "warning") {
+    if (level === "error" || level === "warning" || event.message.startsWith("[Sweetly]")) {
       console.log(`[Renderer:${level}] ${event.message}  (${event.sourceId}:${event.line})`);
     }
   });
