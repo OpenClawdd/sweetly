@@ -235,6 +235,38 @@ def run_forced(audio_path, lyrics_text, language, device, dtype_name):
     return sanitize(regroup_spans_into_lines(spans, lines), audio_end)
 
 
+MIN_WORD_DUR = 0.09
+
+
+def prune_impossible_anchors(words, min_dur=MIN_WORD_DUR):
+    """
+    Drop anchors that imply physically impossible word rates.
+
+    A short repeated phrase can match the wrong occurrence, leaving two anchors
+    0.2s apart with thirty words between them. Interpolation then has nowhere
+    to put those words and crushes them onto one instant. Whenever a gap cannot
+    hold its words at a plausible rate, the later anchor is the suspect one, so
+    drop it and let the span stretch to the next trustworthy anchor.
+    """
+    known = [i for i, w in enumerate(words) if w["start"] is not None]
+    dropped = 0
+    k = 0
+    while k + 1 < len(known):
+        a, b = known[k], known[k + 1]
+        needed = (b - a) * min_dur
+        available = words[b]["start"] - words[a]["start"]
+        if available < needed:
+            words[b]["start"] = words[b]["end"] = None
+            known.pop(k + 1)
+            dropped += 1
+            continue
+        k += 1
+
+    if dropped:
+        print(f"[align] dropped {dropped} implausible anchors", file=sys.stderr)
+    return words
+
+
 def interpolate(words, audio_end):
     """Fill start/end on words no ASR token matched, spreading them evenly."""
     n = len(words)
@@ -329,6 +361,7 @@ def run_asr_reconciled(audio_path, lyrics_text, language, asr_compute_type, asr_
     matched = sum(1 for p in placed if p["start"] is not None)
     print(f"[align] matched {matched}/{len(placed)} lyric words ({matched / max(1, len(placed)):.0%})", file=sys.stderr)
 
+    prune_impossible_anchors(placed)
     interpolate(placed, audio_end)
 
     segments = []

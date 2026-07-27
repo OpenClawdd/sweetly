@@ -13,7 +13,8 @@
 - **Never edit files under `src/` other than `main/`, `preload/`, `renderer/`.** Upstream code stays byte-identical so `diff -r src spicy-lyrics/src` remains the statement of changes required by AGPL-3.0. Every behavioural change goes in the adapter or the Vite config.
 - **License: AGPL-3.0.** Preserve all copyright notices. Do not reintroduce "Spicy Lyrics" as this project's identity in `README.md`, `manifest.json`, or window titles.
 - **Never call `Defaults.lyrics.api.url` for local content.** `utils/Lyrics/manager/parseTTML.ts` is a remote call to Spicy's hosted API; locally-sourced TTML is converted on-device.
-- **Package manager is `bun`**, not npm/npx/node. Source is ESM (`"type": "module"`).
+- **Package manager is `npm`.** `CLAUDE.md` and `.cursor/rules/` say to prefer bun, but bun is not installed on this machine — `bun.lock` came from upstream and this repo carries a `package-lock.json`. Installing a toolchain is not this plan's business, so npm it is.
+- **Test runner is `vitest`** (`npm test`), not `bun test`. Vitest was chosen over `node --test` because the renderer is already a Vite project, so TS and ESM resolution come free, and `happy-dom` supplies the `DOMParser`, `document` and canvas the adapter and converter need. All test snippets below use `vitest` imports. Source is ESM (`"type": "module"`).
 - **Renderer never makes network requests directly.** All Spotify/spicylyrics/Apple IO routes through the main process over IPC.
 - Existing preload surface, already available as `window.electronAPI` and not to be re-derived: `onMusicUpdate(cb)`, `onLyricsUpdated(cb)`, `onAlignStatus(cb)`, `getInitialState()`, `toggleFullscreen()`, `fetchLyrics(payload)`, `setMediaUserToken(token)`, `saveCustomLyrics(name, artist, ttml)`, `seekTo(seconds)`, `togglePlayPause()`, `nextTrack()`, `previousTrack()`, `toggleShuffle()`, `cycleRepeat()`, `toggleFavorite()`.
 - The `music-update` IPC payload shape, emitted by `src/main/appleMusic.js:122-136`:
@@ -69,15 +70,16 @@
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: a renderer build that compiles `.ts`/`.tsx`/`.scss`, and `bun test` as the test command. No source changes yet — the app must still run on the old `App.jsx` at the end of this task.
+- Produces: a renderer build that compiles `.ts`/`.tsx`/`.scss`, and `npm test` as the test command. No source changes yet — the app must still run on the old `App.jsx` at the end of this task.
 
 - [ ] **Step 1: Install Spicy's runtime dependencies**
 
 ```bash
-bun add simplebar sonner nanostores @nanostores/react @tanstack/react-query \
-  @tanstack/virtual-core idb cubic-spline d3-ease semver kuroshiro \
-  cyrillic-romanization franc-all langs tippy.js
-bun add -d sass @types/d3-ease @types/semver typescript
+npm install simplebar sonner nanostores @nanostores/react @tanstack/react-query \
+  @tanstack/virtual-core idb cubic-spline d3-ease semver tippy.js
+npm install kuroshiro cyrillic-romanization franc-all langs
+npm install -D vitest happy-dom sass @types/d3-ease @types/semver typescript \
+  @types/react @types/react-dom
 ```
 
 `@kawarp/core` and `react`/`react-dom` 19 are already present at versions matching upstream — do not touch them.
@@ -87,7 +89,8 @@ bun add -d sass @types/d3-ease @types/semver typescript
 In `package.json`, add to `"scripts"`:
 
 ```json
-"test": "bun test"
+"test": "vitest run",
+"test:watch": "vitest"
 ```
 
 - [ ] **Step 3: Configure the renderer build**
@@ -138,13 +141,13 @@ export default defineConfig({
 
 - [ ] **Step 4: Verify the build still works unchanged**
 
-Run: `bun run build`
+Run: `npm run build`
 Expected: exits 0, `build/renderer/` is produced. The aliases point at files that do not exist yet, but nothing imports them yet either, so Rollup never resolves them.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add package.json bun.lock electron.vite.config.ts tsconfig.json
+git add package.json package-lock.json electron.vite.config.ts vitest.config.ts
 git commit -m "build: add Spicy runtime deps, TS/SCSS and adapter aliases to renderer"
 ```
 
@@ -171,7 +174,7 @@ git commit -m "build: add Spicy runtime deps, TS/SCSS and adapter aliases to ren
 Create `tests/adapter/musicState.test.ts`:
 
 ```ts
-import { describe, expect, test, beforeEach } from "bun:test";
+import { describe, expect, test, beforeEach } from "vitest";
 import {
   EMPTY_STATE,
   getMusicState,
@@ -222,7 +225,7 @@ describe("musicState", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `bun test tests/adapter/musicState.test.ts`
+Run: `npx vitest run tests/adapter/musicState.test.ts`
 Expected: FAIL — cannot resolve `src/renderer/adapter/musicState.ts`.
 
 - [ ] **Step 3: Write the implementation**
@@ -289,7 +292,7 @@ export function subscribeMusicState(): () => void {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `bun test tests/adapter/musicState.test.ts`
+Run: `npx vitest run tests/adapter/musicState.test.ts`
 Expected: PASS, 4 tests.
 
 - [ ] **Step 5: Commit**
@@ -319,7 +322,7 @@ git commit -m "feat(adapter): music state store fed by music-update IPC"
 Create `tests/adapter/AppleMusicPlayer.test.ts`:
 
 ```ts
-import { describe, expect, test, beforeEach } from "bun:test";
+import { describe, expect, test, beforeEach } from "vitest";
 import { EMPTY_STATE, setMusicStateForTest } from "../../src/renderer/adapter/musicState.ts";
 import { SpotifyPlayer } from "../../src/renderer/adapter/AppleMusicPlayer.ts";
 
@@ -401,7 +404,7 @@ describe("AppleMusicPlayer", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `bun test tests/adapter/AppleMusicPlayer.test.ts`
+Run: `npx vitest run tests/adapter/AppleMusicPlayer.test.ts`
 Expected: FAIL — cannot resolve `AppleMusicPlayer.ts`.
 
 - [ ] **Step 3: Write the implementation**
@@ -567,7 +570,7 @@ export const SpotifyPlayer = {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `bun test tests/adapter/AppleMusicPlayer.test.ts`
+Run: `npx vitest run tests/adapter/AppleMusicPlayer.test.ts`
 Expected: PASS, 10 tests.
 
 If `GetProgress.ts` fails to import under Bun because it reaches for `Spicetify`, that is expected — Task 4 installs the shim. If it blocks this task, temporarily import the module lazily inside `GetPosition` and note it; Task 4 removes the need.
@@ -601,7 +604,7 @@ git commit -m "feat(adapter): AppleMusicPlayer implementing SpotifyPlayer's surf
 Create `tests/adapter/spicetifyShim.test.ts`:
 
 ```ts
-import { describe, expect, test, beforeEach } from "bun:test";
+import { describe, expect, test, beforeEach } from "vitest";
 import { installSpicetifyShim } from "../../src/renderer/adapter/spicetifyShim.ts";
 
 beforeEach(() => {
@@ -651,7 +654,7 @@ describe("spicetifyShim", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `bun test tests/adapter/spicetifyShim.test.ts`
+Run: `npx vitest run tests/adapter/spicetifyShim.test.ts`
 Expected: FAIL — cannot resolve `spicetifyShim.ts`.
 
 - [ ] **Step 3: Write artworkColors.ts**
@@ -846,8 +849,8 @@ export function installSpicetifyShim(): void {
 
 - [ ] **Step 6: Run test to verify it passes**
 
-Run: `bun test tests/adapter/spicetifyShim.test.ts`
-Expected: PASS, 7 tests. Bun provides a DOM via happy-dom; if `document` is undefined, add `--dom` or install `@happy-dom/global-registrator` and register it in a `tests/setup.ts` referenced from `bunfig.toml` with `preload = ["./tests/setup.ts"]`.
+Run: `npx vitest run tests/adapter/spicetifyShim.test.ts`
+Expected: PASS, 7 tests. `vitest.config.ts` sets `environment: "happy-dom"`, which supplies `document`; if `document` is undefined the config was not picked up.
 
 - [ ] **Step 7: Commit**
 
@@ -879,7 +882,7 @@ TTML times are `mm:ss.SSS`, `ss.SSS`, or `hh:mm:ss.SSS`. Spicy wants **milliseco
 Create `tests/lyrics/toSpicyShape.test.ts`:
 
 ```ts
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { parseLocalTTML, parseTTMLTime } from "../../src/renderer/lyrics/toSpicyShape.ts";
 
 const SYLLABLE_TTML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -987,7 +990,7 @@ describe("parseLocalTTML", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `bun test tests/lyrics/toSpicyShape.test.ts`
+Run: `npx vitest run tests/lyrics/toSpicyShape.test.ts`
 Expected: FAIL — cannot resolve `toSpicyShape.ts`.
 
 - [ ] **Step 3: Write the implementation**
@@ -1146,7 +1149,7 @@ export function parseLocalTTML(ttml: string): SpicyLyrics | null {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `bun test tests/lyrics/toSpicyShape.test.ts`
+Run: `npx vitest run tests/lyrics/toSpicyShape.test.ts`
 Expected: PASS, 13 tests.
 
 - [ ] **Step 5: Commit**
@@ -1187,7 +1190,7 @@ Note that sources emit `{ Content, Type }` with **no `StartTime`**, which `Sylla
 Create `tests/lyrics/fetchLyricsElectron.test.ts`:
 
 ```ts
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { normaliseLyricsResponse } from "../../src/renderer/lyrics/fetchLyricsElectron.ts";
 
 const SYLLABLE = {
@@ -1253,7 +1256,7 @@ describe("normaliseLyricsResponse", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `bun test tests/lyrics/fetchLyricsElectron.test.ts`
+Run: `npx vitest run tests/lyrics/fetchLyricsElectron.test.ts`
 Expected: FAIL — cannot resolve `fetchLyricsElectron.ts`.
 
 - [ ] **Step 3: Write the implementation**
@@ -1333,7 +1336,7 @@ export async function fetchLyricsForCurrentTrack(): Promise<LyricsResult> {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `bun test tests/lyrics/fetchLyricsElectron.test.ts`
+Run: `npx vitest run tests/lyrics/fetchLyricsElectron.test.ts`
 Expected: PASS, 8 tests.
 
 - [ ] **Step 5: Commit**
@@ -1481,7 +1484,7 @@ void start();
 
 - [ ] **Step 3: Run the app**
 
-Run: `bun run dev`
+Run: `npm run dev`
 Expected: the window opens showing Spicy's page layout — NowBar with artwork, title, artists, and the lyrics container. Play a track in Music.app and lyrics should apply.
 
 - [ ] **Step 4: Check the console for shim gaps**
@@ -1575,7 +1578,7 @@ In `src/renderer/main.ts`, immediately after `await PageView.Open();` add:
 
 - [ ] **Step 5: Verify by hand**
 
-Run `bun run dev`. Click `Close` — the window hides. Reopen it from the dock. Click the fullscreen control — the window enters Electron fullscreen and the layout switches to Spicy's fullscreen arrangement (artwork left with scrubber, lyrics right).
+Run `npm run dev`. Click `Close` — the window hides. Reopen it from the dock. Click the fullscreen control — the window enters Electron fullscreen and the layout switches to Spicy's fullscreen arrangement (artwork left with scrubber, lyrics right).
 
 - [ ] **Step 6: Commit**
 
@@ -1699,7 +1702,7 @@ In `src/renderer/main.ts`, inside `start()` after the view controls are installe
 
 - [ ] **Step 3: Verify by hand**
 
-Run `bun run dev`, open Settings from the ViewControls bar. The Lyrics Alignment section renders in the same idiom as the stock sections. Play a track with no synced lyrics and confirm a toast appears while capturing and dismisses afterwards.
+Run `npm run dev`, open Settings from the ViewControls bar. The Lyrics Alignment section renders in the same idiom as the stock sections. Play a track with no synced lyrics and confirm a toast appears while capturing and dismisses afterwards.
 
 - [ ] **Step 4: Commit**
 
@@ -1738,12 +1741,12 @@ rmdir src/Lyrics 2>/dev/null || true
 
 - [ ] **Step 3: Verify the build and tests**
 
-Run: `bun run build && bun test`
+Run: `npm run build && npm test`
 Expected: build exits 0; all tests pass.
 
 - [ ] **Step 4: Verify the app still runs**
 
-Run: `bun run dev`. Play a track. Lyrics render, animate, and scroll.
+Run: `npm run dev`. Play a track. Lyrics render, animate, and scroll.
 
 - [ ] **Step 5: Commit**
 
