@@ -4,6 +4,7 @@ import { fetchBiniLyrics } from "./sources/binilyrics.js";
 import { fetchLRCLib } from "./sources/lrclib.js";
 import { fetchGenius } from "./sources/genius.js";
 import { scrapeSpotifySearch, fetchSpicyLyricsData } from "./sources/spotify.js";
+import { triggerAutoAlignment } from "./autoAligner.js";
 
 export async function fetchLyricsData(name, artist, album) {
   console.log("[Sweetly-Main] fetchLyricsData:", name, artist, "album:", album);
@@ -53,6 +54,9 @@ export async function fetchLyricsData(name, artist, album) {
   } catch (e) {
     console.log("[Sweetly-Main] SpicyLyrics fetch attempt failed:", e.message);
   }
+
+  // Trigger background AI Auto-Aligner for tracks missing word-level TTML
+  triggerAutoAlignment(name, artist);
 
   // 4. Fallback to Apple Music line-level TTML
   if (appleLyrics) {
