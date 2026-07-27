@@ -32,9 +32,82 @@
         100% { transform: scale(1.03); }
       }
       ::-webkit-scrollbar { display: none; }
-      button:hover { background: rgba(255, 255, 255, 0.12) !important; color: rgba(255, 255, 255, 0.8) !important; }
+      /* Scoped away from .mac-btn and the artwork overlay controls, which
+         carry their own colours and transforms. */
+      button:not(.mac-btn):not(.icon-btn):hover {
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.8);
+      }
       button:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.3); outline-offset: 2px; }
-      button:active { transform: scale(0.95); }
+      /* Artwork-overlay controls keep their own colour/transform, so they only
+         brighten on hover. */
+      .icon-btn:hover { opacity: 1; filter: brightness(1.25) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5)); }
+      button:not(.mac-btn):not(.icon-btn):active { transform: scale(0.95); }
+
+      /* ── Now-playing panel ──────────────────────────────────────────────
+         These were fixed-pixel inline styles (320px artwork inside a 36%
+         column), which overflowed and collided with the lyrics at the
+         default 520x380 window size. */
+      .now-playing {
+        width: clamp(150px, 34%, 420px);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(8px, 2vh, 24px);
+        padding: 0 clamp(8px, 1.5vw, 24px);
+        box-sizing: border-box;
+        position: relative;
+        z-index: 2;
+        -webkit-app-region: no-drag;
+      }
+      .artwork {
+        width: min(100%, 320px);
+        aspect-ratio: 1 / 1;
+        border-radius: 4px;
+        background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+        border: 2px solid rgba(255, 255, 255, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        overflow: hidden;
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+        position: relative;
+      }
+      .progress-row {
+        width: min(100%, 320px);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+      }
+      .song-title {
+        font-size: clamp(15px, 1.4vw, 22px);
+        font-weight: 700;
+        color: #fff;
+        text-align: center;
+        max-width: 100%;
+        overflow-wrap: break-word;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+        -webkit-app-region: no-drag;
+      }
+      .song-artist {
+        font-size: clamp(11px, 0.85vw, 13px);
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.4);
+        text-align: center;
+        max-width: 100%;
+        overflow-wrap: break-word;
+        -webkit-app-region: no-drag;
+      }
+      /* Compact window: the artwork panel costs more than it gives, so drop
+         to a text-only strip and hand the space to the lyrics. */
+      @media (max-height: 460px) {
+        .now-playing { width: clamp(120px, 28%, 260px); gap: 6px; }
+        .artwork { display: none; }
+      }
 
       .lyric-line {
         display: flex;
@@ -43,12 +116,15 @@
         padding: 6px 16px;
         margin: 4px -16px;
         border-radius: 14px;
-        transition: transform 0.25s ease, opacity 0.25s ease;
-        will-change: transform, opacity, filter;
+        /* No opacity/filter transition here: the spring loop writes both every
+           frame, and a CSS transition on top of that just adds lag and a
+           second, competing easing curve. */
+        will-change: opacity, filter;
         cursor: pointer;
         position: relative;
         width: 100%;
-        max-width: 580px;
+        /* Was a flat 580px, which forced two-line wraps on wide displays. */
+        max-width: min(1100px, 100%);
         box-sizing: border-box;
         background: transparent !important;
         background-color: transparent !important;
@@ -103,15 +179,21 @@
         left: 0;
         right: 0;
         bottom: 0;
-        color: #ffffff !important;
+        color: #ffffff;
         font-style: normal !important;
         background: transparent !important;
         background-color: transparent !important;
-        text-shadow: 0 0 16px rgba(255, 255, 255, 0.5), 0 2px 8px rgba(0, 0, 0, 0.5);
+        /* Sung text stays white (Apple Music does the same); the album-art
+           accent colours the bloom around it. --accent-color is set per word
+           by the spring loop. */
+        text-shadow:
+          0 0 18px color-mix(in srgb, var(--accent-color, #ffffff) 70%, transparent),
+          0 0 6px rgba(255, 255, 255, 0.45),
+          0 2px 8px rgba(0, 0, 0, 0.5);
         clip-path: inset(0 calc(100% - var(--sweep, 0%)) 0 0);
         -webkit-clip-path: inset(0 calc(100% - var(--sweep, 0%)) 0 0);
         pointer-events: none;
-        will-change: clip-path, text-shadow;
+        will-change: clip-path;
       }
 
       .dot-group {
@@ -121,6 +203,46 @@
         gap: 0.8em;
         width: 100%;
         padding: 12px 0;
+      }
+
+      /* Lyric-alignment progress banner */
+      .align-banner {
+        position: fixed;
+        bottom: 18px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        background: rgba(20, 20, 24, 0.82);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: rgba(255, 255, 255, 0.92);
+        font-size: 0.82rem;
+        font-weight: 600;
+        padding: 9px 18px;
+        border-radius: 999px;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+        z-index: 60;
+        pointer-events: none;
+        white-space: nowrap;
+      }
+      .align-banner.failed {
+        background: rgba(70, 22, 22, 0.85);
+        border-color: rgba(255, 120, 120, 0.35);
+      }
+      .align-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #ff453a;
+        flex-shrink: 0;
+        animation: recpulse 1.6s ease-in-out infinite;
+      }
+      @keyframes recpulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.25; }
       }
 
       /* Resume Sync Floating Button */
@@ -161,15 +283,23 @@
         margin-bottom: 24px;
       }
 
-      /* Sub-line Background Vocal Styling (1:1 SpicyLyrics / Apple Music - stacked directly under lead line) */
+      /* Background vocals stack directly under their lead line, smaller and
+         dimmer — the way Music.app renders an ad-lib.
+         The size has to be applied to .word: those carry their own absolute
+         clamp(), so a font-size on the line did nothing. Opacity is driven
+         per-frame by the spring loop, not from here. */
       .lyric-line.background-vocal {
         font-style: normal !important;
-        font-size: 0.72em !important;
-        opacity: 0.65;
         width: 100% !important;
-        margin-top: 4px !important;
+        margin-top: 2px !important;
         margin-bottom: 0px !important;
         padding-left: 2px !important;
+      }
+      .lyric-line.background-vocal .word {
+        font-size: clamp(1.05rem, 1.82cqi, 1.96rem);
+      }
+      .lyric-line.background-vocal .word-base {
+        color: rgba(255, 255, 255, 0.4);
       }
       .lyric-line.opposite-aligned {
         justify-content: flex-end;
@@ -280,6 +410,18 @@
       @keyframes fadeIn {
         from { opacity: 0; transform: scale(0.96); }
         to { opacity: 1; transform: scale(1); }
+      }
+
+      /* The spring loop and the artwork float are gated in JS (useReducedMotion);
+         this covers the purely declarative motion. */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.001ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.001ms !important;
+        }
+        .word-fill, .dot-fill { will-change: auto; }
+        .lyric-line { will-change: auto; filter: none !important; }
       }
     </style>
   </head>

@@ -1,146 +1,303 @@
+/**
+ * Background lyrics aligner.
+ *
+ * When a track has no word-level timings anywhere, capture the audio as it
+ * plays and derive them. If we already know the words (Apple often ships
+ * correct-but-untimed lyrics), the Python side force-aligns that text rather
+ * than transcribing, which is both faster and immune to mishearing.
+ *
+ * Results land in ~/.sweetly-custom/<key>.ttml, which the custom source checks
+ * first — so the next play of that track is word-level synced.
+ */
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { customKey } from "./customKey.js";
+import { findLoopbackDevice, captureSystemAudio, SETUP_HINT } from "./audioCapture.js";
 
-const activeJobs = new Set();
+const CUSTOM_DIR = path.join(os.homedir(), ".sweetly-custom");
+const WORK_DIR = path.join(CUSTOM_DIR, ".work");
+
+const activeJobs = new Map();
 let onLyricsUpdatedCallback = null;
+let onStatusCallback = null;
+let warnedNoLoopback = false;
+
+// Capturing only makes sense from the top of a track: the aligner is given the
+// whole lyric, so the recording has to contain the whole vocal.
+const MAX_START_POSITION = 5;
 
 export function setLyricsUpdatedListener(cb) {
   onLyricsUpdatedCallback = cb;
 }
 
+/**
+ * Report job progress to the UI. Capture runs for the length of the track, so
+ * without this the user has no idea anything is happening — and closing the
+ * window kills the ffmpeg child mid-recording.
+ */
+export function setAlignStatusListener(cb) {
+  onStatusCallback = cb;
+}
+
+function emitStatus(payload) {
+  try { onStatusCallback?.(payload); } catch {}
+}
+
+export function getActiveJobs() {
+  return [...activeJobs.keys()];
+}
+
+function pythonBin() {
+  const candidates = [
+    process.env.SWEETLY_PYTHON_BIN,
+    path.join(os.homedir(), ".local/pipx/venvs/whisperx/bin/python"),
+    "/opt/homebrew/bin/python3",
+  ];
+  return candidates.find((p) => p && fs.existsSync(p)) || "python3";
+}
+
+function alignScript() {
+  // scripts/ sits next to src/ in dev and is copied beside the bundle in prod.
+  const candidates = [
+    process.env.SWEETLY_ALIGN_SCRIPT,
+    path.resolve(process.cwd(), "scripts/align_lyrics.py"),
+    path.resolve(path.dirname(new URL(import.meta.url).pathname), "../../../scripts/align_lyrics.py"),
+  ];
+  return candidates.find((p) => p && fs.existsSync(p)) || null;
+}
+
 function formatTTMLTime(seconds) {
-  const s = parseFloat(seconds || 0);
+  const s = Math.max(0, parseFloat(seconds || 0));
   const hrs = Math.floor(s / 3600);
   const mins = Math.floor((s % 3600) / 60);
   const secs = (s % 60).toFixed(3);
   return `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(6, "0")}`;
 }
 
-export function convertWhisperJsonToTTML(rawJson, artistName = "") {
+function escapeXml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+const INTERJECTIONS = /^\(?(boom[-]?boom|skrrt|yeah|yea|uh|uh-huh|woah|whoa|ay|aye|brrr|brrt|pew|pop|gang|bop|ha|haha|yah|yup|oh|hol'?\s*up|hold\s*up)\)?$/i;
+
+/**
+ * WhisperX/Qwen JSON -> Apple-shaped TTML.
+ *
+ * Parenthesised words and bare interjections become an x-bg sub-line so they
+ * render stacked under the lead the way Music.app does.
+ */
+export function convertAlignedJsonToTTML(rawJson, artistName = "", offsetSeconds = 0) {
   const segments = rawJson.segments || [];
   let paragraphs = "";
-
-  const INTERJECTIONS = /^\(?(boom[-]?boom|slop|slap|skrrt|yeah|yea|uh|uh-huh|woah|whoa|ay|aye|brrr|brrt|pew|pop|bitch|gang|bop|ha|haha|flex|blat|slatt|yah|yup|oh|no|wait|look|say|hol'?\s*up|hold\s*up|go)\)?$/i;
+  let lastEnd = 0;
 
   for (const seg of segments) {
     const words = seg.words || [];
     if (!words.length) continue;
 
-    const segStart = formatTTMLTime(words[0].start ?? seg.start);
-    const segEnd = formatTTMLTime(words[words.length - 1].end ?? seg.end);
+    const shift = (v, fallback) => formatTTMLTime((v ?? fallback ?? 0) + offsetSeconds);
+    const segStart = shift(words[0].start, seg.start);
+    const segEnd = shift(words[words.length - 1].end, seg.end);
+    lastEnd = Math.max(lastEnd, (words[words.length - 1].end ?? seg.end ?? 0) + offsetSeconds);
 
-    let mainSpans = "";
+    let leadSpans = "";
     let bgSpans = "";
 
     for (const w of words) {
-      if (!w.word) continue;
-      const wStart = formatTTMLTime(w.start ?? seg.start);
-      const wEnd = formatTTMLTime(w.end ?? seg.end);
-      const rawWord = w.word.trim();
+      const raw = String(w.word || "").trim();
+      if (!raw) continue;
+      const clean = raw.replace(/[()]/g, "").trim();
+      if (!clean) continue;
 
-      const isAdlib = rawWord.startsWith("(") || INTERJECTIONS.test(rawWord);
-      const cleanWord = rawWord.replace(/[\(\)]/g, "").trim();
-
-      if (!cleanWord) continue;
-
-      if (isAdlib) {
-        bgSpans += `  <span begin="${wStart}" end="${wEnd}">${cleanWord} </span>`;
-      } else {
-        mainSpans += `  <span begin="${wStart}" end="${wEnd}">${cleanWord} </span>`;
-      }
+      const span = `<span begin="${shift(w.start, seg.start)}" end="${shift(w.end, seg.end)}">${escapeXml(clean)} </span>`;
+      if (raw.startsWith("(") || INTERJECTIONS.test(raw)) bgSpans += span;
+      else leadSpans += span;
     }
 
-    if (mainSpans) {
-      paragraphs += `<p begin="${segStart}" end="${segEnd}">\n${mainSpans}\n</p>\n`;
+    if (!leadSpans && !bgSpans) continue;
+
+    // A line that is nothing but ad-libs stays a lead line — there is no
+    // lead for it to sit under.
+    if (!leadSpans) {
+      paragraphs += `<p begin="${segStart}" end="${segEnd}">${bgSpans}</p>\n`;
+      continue;
     }
-    if (bgSpans) {
-      paragraphs += `<p begin="${segStart}" end="${segEnd}" ttm:role="Background">\n${bgSpans}\n</p>\n`;
-    }
+
+    const bg = bgSpans ? `<span ttm:role="x-bg">${bgSpans}</span>` : "";
+    paragraphs += `<p begin="${segStart}" end="${segEnd}">${leadSpans}${bg}</p>\n`;
   }
 
   return `<tt xmlns="http://www.w3.org/ns/ttml" xmlns:itunes="http://music.apple.com/lyric-ttml-internal" xmlns:ttm="http://www.w3.org/ns/ttml#metadata" itunes:timing="Word" xml:lang="en">
 <head>
   <metadata>
     <iTunesMetadata xmlns="http://music.apple.com/lyric-ttml-internal">
-      <songwriters><songwriter>${artistName}</songwriter></songwriters>
+      <songwriters><songwriter>${escapeXml(artistName)}</songwriter></songwriters>
     </iTunesMetadata>
   </metadata>
 </head>
-<body dur="${formatTTMLTime(segments[segments.length - 1]?.end || 180)}">
+<body dur="${formatTTMLTime(lastEnd)}">
   <div>
-${paragraphs}
-  </div>
+${paragraphs}  </div>
 </body>
 </tt>`;
 }
 
-export function triggerAutoAlignment(name, artist, audioPath = null) {
-  const jobKey = `${name}|||${artist}`;
-  if (activeJobs.has(jobKey)) return;
-  activeJobs.add(jobKey);
+function runAligner({ audioPath, lyricsPath, outPath }) {
+  return new Promise((resolve) => {
+    const script = alignScript();
+    if (!script) {
+      resolve({ ok: false, reason: "align_lyrics.py not found" });
+      return;
+    }
 
-  console.log("[Sweetly-AutoAligner] M5 Background AI Aligner triggered for:", name, artist);
+    const args = [script, "--audio", audioPath, "--out", outPath];
+    if (lyricsPath) args.push("--lyrics", lyricsPath);
 
-  const customDir = path.join(os.homedir(), ".sweetly-custom");
-  if (!fs.existsSync(customDir)) fs.mkdirSync(customDir, { recursive: true });
+    const child = spawn(pythonBin(), args, { env: { ...process.env, PYTHONWARNINGS: "ignore" } });
+    let stderr = "";
+    child.stderr.on("data", (d) => {
+      const text = d.toString();
+      stderr += text;
+      for (const line of text.split("\n")) {
+        if (line.startsWith("[align]")) console.log("[Sweetly-Aligner]", line.trim());
+      }
+    });
 
-  const safeName = `${name}_${artist}`.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
-  const jsonPath = path.join(customDir, `${safeName}.json`);
-  const ttmlPath = path.join(customDir, `${safeName}.ttml`);
+    child.on("error", (e) => resolve({ ok: false, reason: `python spawn failed: ${e.message}` }));
+    child.on("close", (code) => {
+      if (code === 0 && fs.existsSync(outPath)) resolve({ ok: true });
+      else resolve({ ok: false, reason: `aligner exited ${code}: ${stderr.trim().slice(-300)}` });
+    });
+  });
+}
 
+/**
+ * Kick off alignment for a track. Safe to call on every fetch — it no-ops when
+ * a result already exists, a job is already running, or preconditions fail.
+ *
+ * @param {object} opts
+ * @param {string} opts.name         track title
+ * @param {string} opts.artist       artist
+ * @param {number} opts.duration     track length in seconds
+ * @param {number} opts.position     current playhead in seconds
+ * @param {string} [opts.lyricsText] known-but-untimed lyrics, enables forced alignment
+ */
+export async function triggerAutoAlignment({ name, artist, duration, position = 0, lyricsText = "" }) {
+  const key = customKey(name, artist);
+  if (!key) return { started: false, reason: "no key" };
+  if (activeJobs.has(key)) return { started: false, reason: "already running" };
+
+  fs.mkdirSync(WORK_DIR, { recursive: true });
+  const ttmlPath = path.join(CUSTOM_DIR, `${key}.ttml`);
+  if (fs.existsSync(ttmlPath)) return { started: false, reason: "already aligned" };
+
+  // Pre-aligned JSON dropped in by hand or by convert-whisperx.
+  const jsonPath = path.join(CUSTOM_DIR, `${key}.json`);
   if (fs.existsSync(jsonPath)) {
     try {
-      const rawJson = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
-      const ttml = convertWhisperJsonToTTML(rawJson, artist);
+      const ttml = convertAlignedJsonToTTML(JSON.parse(fs.readFileSync(jsonPath, "utf8")), artist);
       fs.writeFileSync(ttmlPath, ttml, "utf8");
-      console.log("[Sweetly-AutoAligner] Converted existing JSON to M5 TTML:", ttmlPath);
-      activeJobs.delete(jobKey);
+      console.log("[Sweetly-Aligner] Converted existing JSON ->", ttmlPath);
       onLyricsUpdatedCallback?.(name, artist);
-      return;
-    } catch {}
+      return { started: false, reason: "converted existing json" };
+    } catch (e) {
+      console.log("[Sweetly-Aligner] Bad pre-aligned JSON:", e.message);
+    }
   }
 
-  if (!audioPath) {
-    console.log("[Sweetly-AutoAligner] Waiting for audio input file for background M5 alignment...");
-    activeJobs.delete(jobKey);
-    return;
+  if (!Number.isFinite(duration) || duration < 20) {
+    return { started: false, reason: "unknown or too-short duration" };
+  }
+  if (position > MAX_START_POSITION) {
+    // Mid-song: the recording would miss the opening lines, so the whole
+    // lyric could not be aligned against it. Catch it on the next play.
+    return { started: false, reason: `track already ${Math.round(position)}s in` };
   }
 
-  const whisperBin = fs.existsSync("/Users/noahmendieta/.local/bin/whisperx")
-    ? "/Users/noahmendieta/.local/bin/whisperx"
-    : "whisperx";
+  const device = await findLoopbackDevice();
+  if (!device) {
+    if (!warnedNoLoopback) {
+      warnedNoLoopback = true;
+      console.log("[Sweetly-Aligner] No loopback audio device found.\n" + SETUP_HINT);
+    }
+    return { started: false, reason: "no loopback device" };
+  }
 
-  console.log("[Sweetly-AutoAligner] Spawning M5 GPU Metal Accelerated WhisperX:", whisperBin);
+  const controller = new AbortController();
+  activeJobs.set(key, controller);
 
-  const child = spawn(whisperBin, [
-    audioPath,
-    "--model", "small",
-    "--device", "mps",
-    "--compute_type", "float16",
-    "--language", "en",
-    "--output_format", "json",
-    "--output_dir", customDir
-  ]);
+  const audioPath = path.join(WORK_DIR, `${key}.wav`);
+  const outJson = path.join(WORK_DIR, `${key}.json`);
+  const lyricsPath = lyricsText.trim() ? path.join(WORK_DIR, `${key}.txt`) : null;
+  if (lyricsPath) fs.writeFileSync(lyricsPath, lyricsText, "utf8");
 
-  child.on("close", (code) => {
-    activeJobs.delete(jobKey);
-    if (code === 0 && fs.existsSync(jsonPath)) {
-      try {
-        const rawJson = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
-        const ttml = convertWhisperJsonToTTML(rawJson, artist);
-        fs.writeFileSync(ttmlPath, ttml, "utf8");
-        console.log("[Sweetly-AutoAligner] ✅ M5 Metal GPU Alignment Complete! Saved to:", ttmlPath);
-        onLyricsUpdatedCallback?.(name, artist);
-      } catch (e) {
-        console.error("[Sweetly-AutoAligner] Error converting aligned JSON:", e.message);
+  const seconds = Math.min(duration - position + 1, 600);
+  console.log(
+    `[Sweetly-Aligner] Capturing "${name}" from ${device.name} for ${Math.round(seconds)}s`,
+    lyricsPath ? "(forced alignment)" : "(ASR)",
+  );
+
+  // Fire-and-forget: this runs for the length of the song.
+  (async () => {
+    try {
+      emitStatus({ name, artist, phase: "capturing", seconds: Math.round(seconds) });
+      const cap = await captureSystemAudio({
+        seconds, outPath: audioPath, deviceIndex: device.index, signal: controller.signal,
+      });
+      if (!cap.ok) {
+        console.log("[Sweetly-Aligner] Capture failed:", cap.reason);
+        emitStatus({ name, artist, phase: "failed", reason: cap.reason });
+        return;
+      }
+
+      emitStatus({ name, artist, phase: "aligning" });
+      const aligned = await runAligner({ audioPath, lyricsPath, outPath: outJson });
+      if (!aligned.ok) {
+        console.log("[Sweetly-Aligner] Alignment failed:", aligned.reason);
+        emitStatus({ name, artist, phase: "failed", reason: aligned.reason });
+        return;
+      }
+
+      const json = JSON.parse(fs.readFileSync(outJson, "utf8"));
+      const ttml = convertAlignedJsonToTTML(json, artist, position);
+      fs.writeFileSync(ttmlPath, ttml, "utf8");
+      console.log("[Sweetly-Aligner] Aligned and saved ->", ttmlPath);
+      emitStatus({ name, artist, phase: "done" });
+      onLyricsUpdatedCallback?.(name, artist);
+    } catch (e) {
+      console.error("[Sweetly-Aligner] Job error:", e.message);
+      emitStatus({ name, artist, phase: "failed", reason: e.message });
+    } finally {
+      activeJobs.delete(key);
+      // SWEETLY_KEEP_CAPTURE=1 retains the wav/json/txt for debugging an
+      // alignment without having to record the song again.
+      if (process.env.SWEETLY_KEEP_CAPTURE === "1") {
+        console.log("[Sweetly-Aligner] Keeping work files in", WORK_DIR);
+      } else {
+        for (const f of [audioPath, outJson, lyricsPath]) {
+          if (f) try { fs.unlinkSync(f); } catch {}
+        }
       }
     }
-  });
+  })();
 
-  child.on("error", (e) => {
-    activeJobs.delete(jobKey);
-    console.log("[Sweetly-AutoAligner] WhisperX M5 spawn note:", e.message);
-  });
+  return { started: true, seconds };
+}
+
+/** Stop an in-flight capture (e.g. the user skipped the track). */
+export function cancelAlignment(name, artist) {
+  const key = customKey(name, artist);
+  const controller = activeJobs.get(key);
+  if (!controller) return false;
+  controller.abort();
+  activeJobs.delete(key);
+  console.log("[Sweetly-Aligner] Cancelled job for", key);
+  emitStatus({ name, artist, phase: "cancelled" });
+  return true;
 }

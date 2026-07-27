@@ -19,6 +19,9 @@ tell application "Music"
       set tAlbum to ""
       set tPos to 0
       set tDur to 0
+      set tShuffle to "false"
+      set tRepeat to "off"
+      set tFav to "false"
       try
         set tName to name of current track
         set tArtist to artist of current track
@@ -26,7 +29,16 @@ tell application "Music"
         set tPos to player position
         set tDur to duration of current track
       end try
-      return pState & "|||" & tName & "|||" & tArtist & "|||" & tAlbum & "|||" & tPos & "|||" & tDur
+      try
+        set tShuffle to (shuffle enabled) as string
+      end try
+      try
+        set tRepeat to (song repeat) as string
+      end try
+      try
+        set tFav to (favorited of current track) as string
+      end try
+      return pState & "|||" & tName & "|||" & tArtist & "|||" & tAlbum & "|||" & tPos & "|||" & tDur & "|||" & tShuffle & "|||" & tRepeat & "|||" & tFav
     else
       return "stopped||||||"
     end if
@@ -69,7 +81,14 @@ export function cleanTrackTitle(title) {
 
 export function cleanArtistName(artist) {
   if (!artist) return "";
-  const cleaned = artist.split(/[—\-\(\[][^\)\]—\-]*$/)[0].trim();
+  // Strip trailing qualifiers only: "(feat. X)", "[Live]", " - Topic".
+  // The dash form requires surrounding whitespace so hyphenated names
+  // survive intact — "a-ha", "Jay-Z" and "Blink-182" are artists, not
+  // artists with suffixes.
+  const cleaned = artist
+    .replace(/\s*[([][^)\]]*[)\]]\s*$/g, "")
+    .replace(/\s+[—–-]\s+.*$/, "")
+    .trim();
   return cleaned || artist.trim();
 }
 
@@ -111,6 +130,9 @@ export async function fetchAppleMusicState() {
         position: parseFloat(parts[4]) || 0,
         duration: parseFloat(parts[5]) || 0,
       },
+      shuffle: parts[6] === "true",
+      repeat: parts[7] || "off",
+      favorited: parts[8] === "true",
     };
   } catch (err) {
     const detail = err.stderr || err.message || String(err);
@@ -129,54 +151,81 @@ export function pollAppleMusic(intervalMs, onState) {
   return () => clearInterval(timer);
 }
 
-export async function setPlayerPosition(seconds) {
-  const script = `tell application "Music" to set player position to ${seconds}`;
+/**
+ * Run a short control script via `osascript -e`.
+ *
+ * These deliberately do NOT go through SCRIPT_PATH: the poller rewrites that
+ * file every tick, so a control action landing between the poller's write and
+ * its exec used to make one of the two run the other's script.
+ */
+async function runControl(label, script) {
   try {
-    await writeFile(SCRIPT_PATH, script, "utf8");
-    await execFileAsync("osascript", [SCRIPT_PATH], { encoding: "utf8", timeout: 5000 });
-    console.log("[AppleScript] Set position:", seconds);
-    return true;
+    const { stdout } = await execFileAsync("osascript", ["-e", script], {
+      encoding: "utf8",
+      timeout: 5000,
+    });
+    console.log("[AppleScript]", label);
+    return stdout.trim();
   } catch (e) {
-    console.error("[AppleScript] Set position failed:", e.message);
-    return false;
+    console.error(`[AppleScript] ${label} failed:`, e.message);
+    return null;
   }
+}
+
+export async function setPlayerPosition(seconds) {
+  const pos = Number(seconds);
+  if (!Number.isFinite(pos) || pos < 0) return false;
+  return (await runControl(`Set position: ${pos}`, `tell application "Music" to set player position to ${pos}`)) !== null;
 }
 
 export async function togglePlayPause() {
-  const script = `tell application "Music" to playpause`;
-  try {
-    await writeFile(SCRIPT_PATH, script, "utf8");
-    await execFileAsync("osascript", [SCRIPT_PATH], { encoding: "utf8", timeout: 5000 });
-    console.log("[AppleScript] Toggle play/pause");
-    return true;
-  } catch (e) {
-    console.error("[AppleScript] Play/pause failed:", e.message);
-    return false;
-  }
+  return (await runControl("Toggle play/pause", `tell application "Music" to playpause`)) !== null;
 }
 
 export async function skipToNext() {
-  const script = `tell application "Music" to next track`;
-  try {
-    await writeFile(SCRIPT_PATH, script, "utf8");
-    await execFileAsync("osascript", [SCRIPT_PATH], { encoding: "utf8", timeout: 5000 });
-    console.log("[AppleScript] Next track");
-    return true;
-  } catch (e) {
-    console.error("[AppleScript] Next track failed:", e.message);
-    return false;
-  }
+  return (await runControl("Next track", `tell application "Music" to next track`)) !== null;
 }
 
 export async function skipToPrevious() {
-  const script = `tell application "Music" to previous track`;
-  try {
-    await writeFile(SCRIPT_PATH, script, "utf8");
-    await execFileAsync("osascript", [SCRIPT_PATH], { encoding: "utf8", timeout: 5000 });
-    console.log("[AppleScript] Previous track");
-    return true;
-  } catch (e) {
-    console.error("[AppleScript] Previous track failed:", e.message);
-    return false;
-  }
+  return (await runControl("Previous track", `tell application "Music" to previous track`)) !== null;
+}
+
+export async function toggleShuffle() {
+  const out = await runControl(
+    "Toggle shuffle",
+    `tell application "Music"
+      set shuffle enabled to not (shuffle enabled)
+      return (shuffle enabled) as string
+    end tell`,
+  );
+  return out === "true";
+}
+
+/** Cycles off -> all -> one -> off, matching the Music.app repeat button. */
+export async function cycleRepeat() {
+  const out = await runControl(
+    "Cycle repeat",
+    `tell application "Music"
+      if song repeat is off then
+        set song repeat to all
+      else if song repeat is all then
+        set song repeat to one
+      else
+        set song repeat to off
+      end if
+      return (song repeat) as string
+    end tell`,
+  );
+  return out || "off";
+}
+
+export async function toggleFavorite() {
+  const out = await runControl(
+    "Toggle favorite",
+    `tell application "Music"
+      set favorited of current track to not (favorited of current track)
+      return (favorited of current track) as string
+    end tell`,
+  );
+  return out === "true";
 }

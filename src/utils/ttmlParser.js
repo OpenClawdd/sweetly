@@ -4,10 +4,19 @@
  */
 
 export function parseTTMLData(apiResponse, provider = "apple") {
-  if (!apiResponse || !apiResponse.Content) return { lines: [], type: "none", provider };
+  if (!apiResponse || !apiResponse.Content) return { lines: [], type: "none", provider, unsynced: false };
 
   const type = apiResponse.Type || "Unknown";
+  // Source had no timings at all (Apple's itunes:timing="None"). Rendered as
+  // static readable text rather than a karaoke sweep against fake zero times.
+  const unsynced = apiResponse.Unsynced === true;
   const rawLines = [];
+
+  // Does this source mark its own background vocals? Apple's TTML nests them
+  // as <span ttm:role="x-bg">; community TTML uses whole background <p>s.
+  const hasNativeBackground = apiResponse.Content.some(
+    (c) => c.Background?.Syllables?.length > 0 || c.Lead?.IsBackground === true,
+  );
 
   for (const contentLine of apiResponse.Content) {
     const lead = contentLine.Lead;
@@ -38,6 +47,12 @@ export function parseTTMLData(apiResponse, provider = "apple") {
       }
     }
   }
+
+  // Line-level sources (LRCLIB, Genius, Apple's non-syllable TTML) give every
+  // word the line's own start/end, which makes the karaoke sweep fill a whole
+  // line in one jump. Spread the timings across the line proportionally to
+  // word length so the sweep still reads as progress.
+  for (const line of rawLines) ensureWordLevelTimings(line);
 
   const IS_SECTION_TAG = /^\(?\[?(intro|outro|chorus|verse|bridge|refrain|hook|pre-chorus|post-chorus|instrumental|interlude|solo|breakdown|spoken)/i;
 
@@ -110,8 +125,12 @@ export function parseTTMLData(apiResponse, provider = "apple") {
       const bgWords = [];
       const INTERJECTIONS = /^(boom[-]?boom|slop|slap|skrrt|yeah|yea|uh|uh-huh|woah|whoa|ay|aye|brrr|brrt|pew|pop|bitch|gang|bop|ha|haha|flex|blat|slatt|yah|yup|oh|no|wait|look|say|hol'?\s*up|hold\s*up|go)$/i;
 
-      // Detect mid-line ad-libs or capitalized interjections after main phrase
-      if (mainWords.length >= 3) {
+      // Guess at mid-line ad-libs from the text itself. This only runs for
+      // sources with no real background markers (WhisperX, LRCLIB, Genius).
+      // When the source tells us where the ad-libs are, guessing actively
+      // corrupts it — it would tear "Carlton" out of "I'm dead fresh, Carlton"
+      // just for being capitalized.
+      if (!hasNativeBackground && mainWords.length >= 3) {
         let splitIdx = -1;
         for (let k = 1; k < mainWords.length - 1; k++) {
           const prevTxt = mainWords[k].text ? mainWords[k].text.trim() : "";
@@ -196,7 +215,7 @@ export function parseTTMLData(apiResponse, provider = "apple") {
     lines.push(line);
   }
 
-  return { lines, type, provider };
+  return { lines, type, provider, unsynced };
 }
 
 function ensureWordLevelTimings(line) {

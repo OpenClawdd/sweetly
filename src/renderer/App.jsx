@@ -2,12 +2,9 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from "react"
 import { parseTTMLData, getActiveIndices } from "../utils/ttmlParser.js";
 import { Spring } from "../modules/Spring";
 import {
-  createWordSprings, createLetterSprings, createDotSprings,
+  createWordSprings,
   ScaleSpline, YOffsetSpline, GlowSpline,
-  LetterScaleSpline, LetterYOffsetSpline,
-  DotScaleSpline, DotYOffsetSpline, DotGlowSpline, DotOpacitySpline,
-  LetterGlowMultiplier_Opacity, SungLetterGlow,
-  getElementState, getProgressPercentage, easeSinOut,
+  getElementState, getProgressPercentage,
   setStyleIfChanged, flushStyleBatch
 } from "./animationEngine.js";
 
@@ -27,6 +24,22 @@ function prewarmFonts() {
 
 
 const DEBUG = false;
+
+const reducedMotionQuery =
+  typeof window !== "undefined" && window.matchMedia
+    ? window.matchMedia("(prefers-reduced-motion: reduce)")
+    : null;
+
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(() => reducedMotionQuery?.matches ?? false);
+  useEffect(() => {
+    if (!reducedMotionQuery) return;
+    const onChange = (e) => setReduced(e.matches);
+    reducedMotionQuery.addEventListener("change", onChange);
+    return () => reducedMotionQuery.removeEventListener("change", onChange);
+  }, []);
+  return reduced;
+}
 
 const BG_STATIC = (url, palette) => {
   let bgStyle = {};
@@ -104,21 +117,9 @@ const VIGNETTE = {
   background: "radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.65) 100%)",
 };
 
-const LEFT_PANEL = {
-  width: "36%", height: "100vh", display: "flex", flexDirection: "column",
-  alignItems: "center", justifyContent: "center", padding: "0 20px",
-  boxSizing: "border-box", position: "relative", zIndex: 2, WebkitAppRegion: "no-drag",
-};
-
-const ART_PLACEHOLDER = {
-  width: 320, height: 320, borderRadius: 4,
-  background: "linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))",
-  border: "2px solid rgba(255,255,255,0.15)",
-  display: "flex", alignItems: "center", justifyContent: "center",
-  flexShrink: 0, marginBottom: 32, overflow: "hidden",
-  boxShadow: "0 12px 48px rgba(0,0,0,0.6)",
-  position: "relative",
-};
+// Layout for the now-playing column lives in index.html (.now-playing,
+// .artwork, .progress-row, .song-title, .song-artist) so it can respond to
+// the window size — this panel has to work at both 520x380 and fullscreen.
 
 const IMG_FIT = { width: "100%", height: "100%", objectFit: "cover" };
 const NOTE = { opacity: 0.12, color: "#fff", fontSize: 56 };
@@ -147,11 +148,6 @@ const PLAY_PAUSE_BTN = {
   transition: "transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
 };
 
-const PROGRESS_ROW = {
-  width: 320, display: "flex", alignItems: "center", gap: 10,
-  flexShrink: 0, marginBottom: 16,
-};
-
 const PROGRESS_BAR = {
   flex: 1, height: 4, background: "rgba(255,255,255,0.15)",
   borderRadius: 2, overflow: "hidden", cursor: "pointer",
@@ -167,18 +163,6 @@ const TIMESTAMP = {
   fontSize: 10, color: "rgba(255,255,255,0.35)",
   fontFamily: "monospace", minWidth: 34, textAlign: "center",
   WebkitAppRegion: "no-drag",
-};
-
-const SONG_TITLE = {
-  fontSize: 22, fontWeight: 700, color: "#fff", textAlign: "center",
-  maxWidth: 320, wordBreak: "break-word", WebkitAppRegion: "no-drag",
-  textShadow: "0 2px 8px rgba(0,0,0,0.6)",
-};
-
-const SONG_ARTIST = {
-  fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.4)",
-  marginTop: 8, textAlign: "center", maxWidth: 320,
-  wordBreak: "break-word", WebkitAppRegion: "no-drag",
 };
 
 const LOADER_BAR = {
@@ -199,45 +183,6 @@ const LYRICS_INNER = {
   alignItems: "flex-start",
   marginTop: "25cqh", marginBottom: "45cqh",
   width: "100%", maxWidth: "none",
-};
-
-const LYRIC_LINE = {
-  display: "flex", flexWrap: "wrap",
-  alignItems: "baseline", justifyContent: "flex-start",
-  marginBottom: 6, willChange: "opacity",
-  padding: "0 12px", width: "100%",
-  wordBreak: "keep-all",
-  overflowWrap: "break-word",
-  cursor: "pointer",
-  borderRadius: 4,
-  transition: "background 0.15s ease",
-};
-
-const WORD_BASE = {
-  fontWeight: 700, lineHeight: 1.35,
-  fontSize: "clamp(2.2rem, 3.8vw, 4.4rem)", display: "inline",
-  letterSpacing: "0.01em", marginRight: "0.25em",
-  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-  backgroundClip: "text",
-};
-
-const WORD_INACTIVE = {
-  ...WORD_BASE, color: "rgba(255,255,255,0.2)",
-  background: "rgba(255,255,255,0.2)",
-  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-};
-
-const WORD_PAST = {
-  ...WORD_BASE, color: "#fff",
-  background: "#fff",
-  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-  textShadow: "0 0 14px rgba(255,255,255,0.35), 0 0 3px rgba(255,255,255,0.5)",
-};
-
-const WORD_ACTIVE_UNSUNG = {
-  ...WORD_BASE, color: "rgba(255,255,255,0.5)",
-  background: "rgba(255,255,255,0.5)",
-  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
 };
 
 const FALLBACK = {
@@ -318,11 +263,47 @@ function extractPalette(imageUrl) {
   });
 }
 
-function getWordProgress(word, currentTime) {
-  if (!word || currentTime == null) return null;
-  const d = word.endTime - word.startTime;
-  if (d <= 0) return null;
-  return Math.max(0, Math.min(1, (currentTime - word.startTime) / d));
+// Media-control glyphs. These were emoji (🔀 ⏮ ❚❚ ⏭ 🔁), which macOS renders
+// as full-colour Apple emoji — visually unrelated to the line icons in the
+// header bar.
+const stroke = { stroke: "currentColor", strokeWidth: 1.6, strokeLinecap: "round", strokeLinejoin: "round", fill: "none" };
+
+function IconPrev() {
+  return <svg width="18" height="18" viewBox="0 0 18 18"><path d="M14 4v10l-7-5zM4 4v10" {...stroke} /></svg>;
+}
+function IconNext() {
+  return <svg width="18" height="18" viewBox="0 0 18 18"><path d="M4 4v10l7-5zM14 4v10" {...stroke} /></svg>;
+}
+function IconPlay() {
+  return <svg width="20" height="20" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z" fill="currentColor" /></svg>;
+}
+function IconPause() {
+  return <svg width="20" height="20" viewBox="0 0 20 20"><rect x="5" y="4" width="3.5" height="12" rx="1" fill="currentColor" /><rect x="11.5" y="4" width="3.5" height="12" rx="1" fill="currentColor" /></svg>;
+}
+function IconShuffle() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18">
+      <path d="M2 5h3l8 8h3M2 13h3l8-8h3" {...stroke} />
+      <path d="M14 2.5L16.5 5 14 7.5M14 10.5L16.5 13 14 15.5" {...stroke} />
+    </svg>
+  );
+}
+function IconRepeat() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18">
+      <path d="M4 7V6a2 2 0 012-2h8M14 11v1a2 2 0 01-2 2H4" {...stroke} />
+      <path d="M12 2l2 2-2 2M6 12l-2 2 2 2" {...stroke} />
+    </svg>
+  );
+}
+function IconRepeatOne() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18">
+      <path d="M4 7V6a2 2 0 012-2h8M14 11v1a2 2 0 01-2 2H4" {...stroke} />
+      <path d="M12 2l2 2-2 2M6 12l-2 2 2 2" {...stroke} />
+      <text x="9" y="11.5" textAnchor="middle" fontSize="7" fontWeight="700" fill="currentColor" stroke="none">1</text>
+    </svg>
+  );
 }
 
 function KaraokeWord({ word, lineIndex, wordIndex, registerWordRef }) {
@@ -338,7 +319,7 @@ function KaraokeWord({ word, lineIndex, wordIndex, registerWordRef }) {
   );
 }
 
-function LyricsView({ parsedLyrics, activeIndices, currentTime, rawClockPosRef, accent }) {
+function LyricsView({ parsedLyrics, activeIndices, currentTime, rawClockPosRef, accent, reducedMotion, offset = 0 }) {
   const scrollRef = useRef(null);
   const isUserScrollingRef = useRef(false);
   const userScrollTimerRef = useRef(null);
@@ -353,6 +334,18 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, rawClockPosRef, 
 
   const accentRef = useRef(accent);
   accentRef.current = accent;
+
+  const reducedMotionRef = useRef(reducedMotion);
+  reducedMotionRef.current = reducedMotion;
+
+  const offsetRef = useRef(offset);
+  offsetRef.current = offset;
+
+  // No timings in the source — show every line as plain readable text instead
+  // of sweeping against times that are all zero.
+  const unsynced = parsedLyrics?.unsynced === true;
+  const unsyncedRef = useRef(unsynced);
+  unsyncedRef.current = unsynced;
 
   const lineRefs = useRef(new Map());
   const wordRefs = useRef(new Map());
@@ -418,6 +411,16 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, rawClockPosRef, 
     scrollSpringRef.current.SetGoal(target);
   }, [activeLine]);
 
+  // Springs are keyed by line index, so they must not survive a track change —
+  // otherwise line 12 of the new song inherits line 12 of the old song's
+  // opacity and blur mid-flight.
+  useEffect(() => {
+    lineSpringsMap.current.clear();
+    scrollSpringRef.current = new Spring(0, 3, 0.65);
+    targetScrollRef.current = 0;
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+  }, [lines]);
+
   useEffect(() => {
     if (!lines || lineCount === 0) return;
     let running = true;
@@ -429,10 +432,12 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, rawClockPosRef, 
       const dt = Math.min(0.1, (now - lastTime) / 1000);
       lastTime = now;
 
-      const curTime = rawClockPosRef?.current || currentTimeRef.current;
+      const curTime = (rawClockPosRef?.current || currentTimeRef.current) - offsetRef.current;
       const accentColor = accentRef.current || "#ffffff";
-      const liveActive = getActiveIndices(lines, curTime);
-      const activeLineIdx = liveActive.line >= 0 ? liveActive.line : (activeLine ?? -1);
+      const reduced = reducedMotionRef.current;
+      const isUnsynced = unsyncedRef.current;
+      const liveActive = isUnsynced ? { line: -1, word: -1 } : getActiveIndices(lines, curTime);
+      const activeLineIdx = isUnsynced ? -1 : (liveActive.line >= 0 ? liveActive.line : (activeLineRef.current ?? -1));
 
       if (isUserScrollingRef.current !== wasUserScrollingRef.current) {
         wasUserScrollingRef.current = isUserScrollingRef.current;
@@ -441,10 +446,15 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, rawClockPosRef, 
           scrollSpringRef.current.SetGoal(targetScrollRef.current);
         }
       }
-      if (!isUserScrollingRef.current && scrollRef.current) {
-        const scrollPos = scrollSpringRef.current.Step(dt);
-        if (Math.abs(scrollRef.current.scrollTop - scrollPos) > 0.3) {
-          scrollRef.current.scrollTop = scrollPos;
+      // Unsynced text: leave scrolling entirely to the user.
+      if (!isUserScrollingRef.current && scrollRef.current && !isUnsynced) {
+        if (reduced) {
+          scrollRef.current.scrollTop = targetScrollRef.current;
+        } else {
+          const scrollPos = scrollSpringRef.current.Step(dt);
+          if (Math.abs(scrollRef.current.scrollTop - scrollPos) > 0.3) {
+            scrollRef.current.scrollTop = scrollPos;
+          }
         }
       }
 
@@ -467,10 +477,13 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, rawClockPosRef, 
           lineSpringsMap.current.set(li, lineSprings);
         }
 
-        let opacityGoal = isLineActive ? (isBackground ? 0.75 : 1.0) : (li < activeLineIdx ? (isBackground ? 0.45 : Math.max(0.48, 0.88 - dist * 0.10)) : (isBackground ? 0.35 : Math.max(0.42, 0.75 - dist * 0.10)));
+        let opacityGoal = isUnsynced
+          ? (isBackground ? 0.62 : 0.92)
+          : isLineActive ? (isBackground ? 0.75 : 1.0) : (li < activeLineIdx ? (isBackground ? 0.45 : Math.max(0.48, 0.88 - dist * 0.10)) : (isBackground ? 0.35 : Math.max(0.42, 0.75 - dist * 0.10)));
 
-        lineSprings.opacity.SetGoal(opacityGoal);
-        lineSprings.blur.SetGoal(isLineActive ? 0 : Math.min(6.25, dist * 1.25));
+        const blurGoal = (reduced || isUnsynced) ? 0 : (isLineActive ? 0 : Math.min(6.25, dist * 1.25));
+        lineSprings.opacity.SetGoal(opacityGoal, reduced);
+        lineSprings.blur.SetGoal(blurGoal, reduced);
 
         const curOpacity = lineSprings.opacity.Step(dt);
         const curBlur = lineSprings.blur.Step(dt);
@@ -509,7 +522,13 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, rawClockPosRef, 
             word.AnimatorStore.Glow.SetGoal(GlowSpline.at(0), true);
           }
           let tScale, tYOffset, tGlow, tGrad;
-          if (wordState === "Active") {
+          if (isUnsynced) {
+            // Static text: no sweep, no lift — just legible words.
+            tScale = 1;
+            tYOffset = 0;
+            tGlow = 0;
+            tGrad = 100;
+          } else if (wordState === "Active") {
             tScale = ScaleSpline.at(wordPct);
             tYOffset = YOffsetSpline.at(wordPct);
             tGlow = GlowSpline.at(wordPct);
@@ -525,8 +544,10 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, rawClockPosRef, 
             tGlow = GlowSpline.at(1);
             tGrad = 100;
           }
-          word.AnimatorStore.Scale.SetGoal(tScale);
-          word.AnimatorStore.YOffset.SetGoal(tYOffset);
+          // reduced motion: keep the karaoke sweep (that's the information),
+          // drop the scale/lift flourish.
+          word.AnimatorStore.Scale.SetGoal(reduced ? 1 : tScale, reduced);
+          word.AnimatorStore.YOffset.SetGoal(reduced ? 0 : tYOffset, reduced);
           word.AnimatorStore.Glow.SetGoal(tGlow);
           const cScale = word.AnimatorStore.Scale.Step(dt);
           const cYOffset = word.AnimatorStore.YOffset.Step(dt);
@@ -545,7 +566,7 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, rawClockPosRef, 
     };
     frameId = requestAnimationFrame(tick);
     return () => { running = false; cancelAnimationFrame(frameId); };
-  }, [lines, lineCount, activeLine]);
+  }, [lines, lineCount]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -607,8 +628,9 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, rawClockPosRef, 
               style={{
                 marginTop: isBackground ? 2 : 12,
                 marginBottom: isNextBackground ? 2 : (isBackground ? 16 : 14),
+                cursor: unsynced ? "default" : "pointer",
               }}
-              onClick={() => { if (lineStartTime >= 0) window.electronAPI?.seekTo(lineStartTime); }}
+              onClick={() => { if (!unsynced && lineStartTime >= 0) window.electronAPI?.seekTo(lineStartTime); }}
             >
               {words.map((w, wi) => (
                 <KaraokeWord
@@ -628,6 +650,9 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, rawClockPosRef, 
           </div>
           {parsedLyrics?.provider === "spicylyrics" && (
             <div className="footer-community">These lyrics have been provided by our community</div>
+          )}
+          {unsynced && (
+            <div className="footer-community">No timed lyrics available — showing unsynced text</div>
           )}
         </div>
       </div>
@@ -667,6 +692,40 @@ function ArtworkImage({ url }) {
         onError={() => { setFailed(true); err("Artwork failed:", url?.slice(0, 60)); }}
       />
     </>
+  );
+}
+
+/**
+ * Alignment progress. Capture runs for the length of the track and closing the
+ * window kills the recording, so this has to be visible and say so.
+ */
+function AlignBanner({ status, now }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (status?.phase !== "capturing") return;
+    const id = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [status?.phase]);
+
+  if (!status) return null;
+
+  let label;
+  if (status.phase === "capturing") {
+    const left = Math.max(0, Math.ceil((status.until - Date.now()) / 1000));
+    label = `Listening to sync lyrics — ${formatTime(left)} left · keep this window open`;
+  } else if (status.phase === "aligning") {
+    label = "Aligning lyrics to audio…";
+  } else if (status.phase === "failed") {
+    label = `Lyric sync failed: ${status.reason || "unknown"}`;
+  } else {
+    return null;
+  }
+
+  return (
+    <div className={`align-banner ${status.phase === "failed" ? "failed" : ""}`}>
+      {status.phase !== "failed" && <span className="align-dot" />}
+      {label}
+    </div>
   );
 }
 
@@ -737,12 +796,24 @@ function App() {
   const [fontsReady, setFontsReady] = useState(false);
   const [kawarpReady, setKawarpReady] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [artFloatY, setArtFloatY] = useState(0);
+  const [alignStatus, setAlignStatus] = useState(null);
+  // Positive = show lyrics later. Covers Bluetooth output latency (the capture
+  // taps the stream before the BT hop) and any lead-in the recording missed.
+  const [lyricsOffset, setLyricsOffset] = useState(() => {
+    const v = parseFloat(localStorage.getItem("sweetly.lyricsOffset"));
+    return Number.isFinite(v) ? v : 0;
+  });
+  const [offsetToast, setOffsetToast] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
-  const [isShuffle, setIsShuffle] = useState(false);
-  const [isRepeat, setIsRepeat] = useState(false);
   const controlsTimeoutRef = useRef(null);
+  const artRef = useRef(null);
+  const reducedMotion = useReducedMotion();
+
+  // Playback options mirror Music.app — the poller is the source of truth,
+  // these are only optimistic values between a click and the next poll.
+  const isFavorited = state?.favorited === true;
+  const isShuffle = state?.shuffle === true;
+  const repeatMode = state?.repeat || "off";
 
   const handleMouseMove = useCallback(() => {
     setControlsVisible(true);
@@ -757,8 +828,6 @@ function App() {
     setControlsVisible(false);
   }, []);
 
-  const accentVelRef = useRef(0);
-  const accentCurrentRef = useRef(null);
   const kawarpRef = useRef(null);
   const kawarpCanvasRef = useRef(null);
   const mountCount = useRef(0);
@@ -766,6 +835,8 @@ function App() {
   const renderCount = useRef(0);
   const lastTrackRef = useRef(null);
   const parsedLyricsRef = useRef(null);
+  const stateRef = useRef(state);
+  stateRef.current = state;
   const basePosRef = useRef(0);
   const baseTimeRef = useRef(0);
   const lastReportedPosRef = useRef(0);
@@ -780,11 +851,29 @@ function App() {
       if ((e.metaKey || e.ctrlKey) && e.key === ",") {
         e.preventDefault();
         setShowSettings((prev) => !prev);
+        return;
+      }
+      // [ / ] nudge lyric timing by 100ms, \ resets. Shift for 500ms steps.
+      if (e.key === "[" || e.key === "]" || e.key === "\\") {
+        e.preventDefault();
+        setLyricsOffset((prev) => {
+          const step = e.shiftKey ? 0.5 : 0.1;
+          const next = e.key === "\\" ? 0 : Math.round((prev + (e.key === "]" ? step : -step)) * 100) / 100;
+          localStorage.setItem("sweetly.lyricsOffset", String(next));
+          return next;
+        });
+        setOffsetToast(true);
       }
     };
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
   }, []);
+
+  useEffect(() => {
+    if (!offsetToast) return;
+    const id = setTimeout(() => setOffsetToast(false), 1400);
+    return () => clearTimeout(id);
+  }, [offsetToast, lyricsOffset]);
 
   useEffect(() => {
     log("App: waiting for fonts...");
@@ -811,31 +900,59 @@ function App() {
     }
   }, [artworkUrl]);
 
+  // Crossfade the accent hue from the previous artwork's to the new one.
+  // The hue carries across palettes in a ref — seeding the spring at its own
+  // goal (as this used to) made it emit a constant value while still burning
+  // a frame callback forever.
+  const accentHueRef = useRef(null);
+
   useEffect(() => {
-    if (palette.length === 0) { setDisplayAccent(null); return; }
-    const targetAccent = palette[0];
-    const targetParts = (targetAccent.match(/[\d.]+/g) || []).map(Number);
-    const targetH = targetParts[0] || 0;
-    const targetS = targetParts[1] || 50;
-    const targetL = targetParts[2] || 55;
-    const spring = new Spring(targetH, 1.5, 0.8, targetH);
+    if (palette.length === 0) { setDisplayAccent(null); accentHueRef.current = null; return; }
+    const [targetH = 0, targetS = 50, targetL = 55] = (palette[0].match(/[\d.]+/g) || []).map(Number);
+
+    let fromH = accentHueRef.current;
+    if (fromH == null) {
+      accentHueRef.current = targetH;
+      setDisplayAccent(`hsl(${Math.round(targetH)}, ${targetS}%, ${targetL}%)`);
+      return;
+    }
+    if (reducedMotion) {
+      accentHueRef.current = targetH;
+      setDisplayAccent(`hsl(${Math.round(targetH)}, ${targetS}%, ${targetL}%)`);
+      return;
+    }
+
+    // Travel the short way around the colour wheel (350° -> 10° is +20, not -340).
+    let goalH = targetH;
+    if (goalH - fromH > 180) fromH += 360;
+    else if (fromH - goalH > 180) goalH += 360;
+
+    const spring = new Spring(fromH, 1.5, 0.8);
+    spring.SetGoal(goalH);
+
     let running = true;
+    let frameId;
     let last = performance.now();
     const loop = (now) => {
       if (!running) return;
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       const h = spring.Step(dt);
-      setDisplayAccent(`hsl(${Math.round(h)}, ${targetS}%, ${targetL}%)`);
-      requestAnimationFrame(loop);
+      accentHueRef.current = ((h % 360) + 360) % 360;
+      setDisplayAccent(`hsl(${Math.round(accentHueRef.current)}, ${targetS}%, ${targetL}%)`);
+      if (spring.CanSleep()) { accentHueRef.current = targetH; return; }
+      frameId = requestAnimationFrame(loop);
     };
-    requestAnimationFrame(loop);
-    return () => { running = false; };
-  }, [palette]);
+    frameId = requestAnimationFrame(loop);
+    return () => { running = false; cancelAnimationFrame(frameId); };
+  }, [palette, reducedMotion]);
 
   useEffect(() => {
     let cancelled = false;
     setKawarpReady(false);
+    // No source to render, or the user asked for less motion — don't spin up
+    // a WebGL context at all.
+    if (reducedMotion || (palette.length === 0 && !artworkUrl)) return;
     async function initKawarp() {
       try {
         const { Kawarp } = await import("@kawarp/core");
@@ -881,7 +998,11 @@ function App() {
         } else if (artworkUrl) {
           k.loadImage(artworkUrl);
         } else {
+          // Nothing to render yet. Dispose rather than abandon — leaking the
+          // instance here burned a WebGL context per track until the browser
+          // hit its context cap and Kawarp stopped working entirely.
           log("Kawarp: no source yet, deferring");
+          try { k.dispose(); } catch {}
           kawarpRef.current = null;
           return;
         }
@@ -907,7 +1028,7 @@ function App() {
         kawarpRef.current = null;
       }
     };
-  }, [artworkUrl, palette]);
+  }, [artworkUrl, palette, reducedMotion]);
 
   const paletteRef = useRef(palette);
   paletteRef.current = palette;
@@ -933,16 +1054,25 @@ function App() {
     };
   }, []);
 
+  // Artwork idle float. Written straight to the node — routing this through
+  // React state re-rendered the entire tree (and re-attached every lyric ref)
+  // 60 times a second.
   useEffect(() => {
+    if (reducedMotion) {
+      if (artRef.current) artRef.current.style.transform = "translateY(0px)";
+      return;
+    }
     let running = true;
+    let frameId;
     const loop = () => {
       if (!running) return;
-      setArtFloatY(Math.sin(performance.now() / 4000) * 6);
-      requestAnimationFrame(loop);
+      const el = artRef.current;
+      if (el) el.style.transform = `translateY(${(Math.sin(performance.now() / 4000) * 6).toFixed(2)}px)`;
+      frameId = requestAnimationFrame(loop);
     };
-    requestAnimationFrame(loop);
-    return () => { running = false; };
-  }, []);
+    frameId = requestAnimationFrame(loop);
+    return () => { running = false; cancelAnimationFrame(frameId); };
+  }, [reducedMotion]);
 
   const handleMusicUpdate = useCallback((newState) => {
     ipcCount.current++;
@@ -1022,6 +1152,45 @@ function App() {
     }).catch(() => setFetching(false));
   }, [state?.track?.nameCleaned, state?.track?.artistCleaned, state?.status]);
 
+  // A background alignment finished. If it was for the track on screen, pull
+  // the lyrics again — the aligner's TTML now sits in ~/.sweetly-custom and
+  // the custom source is checked first, so this swaps unsynced text for
+  // word-level sync without waiting for a track change.
+  useEffect(() => {
+    if (!window.electronAPI?.onLyricsUpdated) return;
+    const off = window.electronAPI.onLyricsUpdated(({ name, artist } = {}) => {
+      const track = stateRef.current?.track;
+      if (!track?.nameCleaned) return;
+      if (track.nameCleaned !== name || track.artistCleaned !== artist) return;
+      log("Aligner: lyrics updated for current track, refetching");
+      fetchLyricsForTrack(track).then((r) => {
+        if (r?.parsed?.lines?.length) {
+          setParsedLyrics(r.parsed);
+          if (r.artworkUrl) setArtworkUrl(r.artworkUrl);
+        }
+      }).catch((e) => err("aligner refetch:", e));
+    });
+    return () => { if (off) off(); };
+  }, []);
+
+  // Alignment runs for the whole song with no other visible sign, and closing
+  // the window kills the recording — so surface it.
+  useEffect(() => {
+    if (!window.electronAPI?.onAlignStatus) return;
+    const off = window.electronAPI.onAlignStatus((payload) => {
+      if (!payload?.phase) return;
+      if (payload.phase === "capturing") {
+        setAlignStatus({ phase: "capturing", until: Date.now() + payload.seconds * 1000 });
+      } else if (payload.phase === "aligning") {
+        setAlignStatus({ phase: "aligning" });
+      } else {
+        setAlignStatus(payload.phase === "failed" ? { phase: "failed", reason: payload.reason } : null);
+        if (payload.phase === "failed") setTimeout(() => setAlignStatus(null), 6000);
+      }
+    });
+    return () => { if (off) off(); };
+  }, []);
+
   const rawClockPosRef = useRef(0);
   const lastSetTimeRef = useRef(0);
 
@@ -1072,9 +1241,11 @@ function App() {
   }, [state?.status]);
 
   const activeIndices = useMemo(() => {
-    try { if (!parsedLyrics?.lines) return { line: -1, word: -1 }; return getActiveIndices(parsedLyrics.lines, currentTime); }
-    catch { return { line: -1, word: -1 }; }
-  }, [parsedLyrics, currentTime]);
+    try {
+      if (!parsedLyrics?.lines || parsedLyrics.unsynced) return { line: -1, word: -1 };
+      return getActiveIndices(parsedLyrics.lines, currentTime - lyricsOffset);
+    } catch { return { line: -1, word: -1 }; }
+  }, [parsedLyrics, currentTime, lyricsOffset]);
 
   const title = state?.track?.name || "";
   const artist = state?.track?.artist || "";
@@ -1143,8 +1314,8 @@ function App() {
         <div style={FALLBACK}><div style={FALLBACK_TITLE}>{message}</div></div>
       ) : (
         <div style={{ display: "flex", flex: 1, width: "100%", position: "relative", zIndex: 2 }}>
-          <div style={LEFT_PANEL}>
-            <div style={{ ...ART_PLACEHOLDER, transform: `translateY(${artFloatY}px)`, position: "relative", overflow: "hidden" }}>
+          <div className="now-playing">
+            <div ref={artRef} className="artwork">
               {artworkUrl
                 ? <ArtworkImage url={artworkUrl} />
                 : <div style={NOTE}>♪</div>}
@@ -1160,20 +1331,20 @@ function App() {
                   transition: "opacity 0.25s ease, transform 0.25s ease",
                   display: "flex", flexDirection: "column",
                   justifyContent: "space-between", padding: 14,
-                  borderRadius: 16, zIndex: 10,
+                  borderRadius: "inherit", zIndex: 10,
                 }}
               >
                 {/* Top Control Bar */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button style={ICON_BTN} onClick={() => window.electronAPI?.toggleFullscreen?.()} title="Fullscreen Mode">
+                    <button className="icon-btn" style={ICON_BTN} onClick={() => window.electronAPI?.toggleFullscreen?.()} title="Fullscreen Mode">
                       ⛶
                     </button>
-                    <button style={ICON_BTN} onClick={() => setShowSettings(true)} title="Settings">
+                    <button className="icon-btn" style={ICON_BTN} onClick={() => setShowSettings(true)} title="Settings">
                       ⚙
                     </button>
                   </div>
-                  <button style={ICON_BTN} onClick={() => window.close()} title="Close Window">
+                  <button className="icon-btn" style={ICON_BTN} onClick={() => window.close()} title="Close Window">
                     ✕
                   </button>
                 </div>
@@ -1181,64 +1352,70 @@ function App() {
                 {/* Center Heart Like Button */}
                 <div style={{ display: "flex", justifyContent: "center", alignItems: "center", flex: 1 }}>
                   <button
+                    className="icon-btn"
                     style={{
                       background: "none", border: "none",
-                      color: isLiked ? "#ff2d55" : "rgba(255, 255, 255, 0.95)",
+                      color: isFavorited ? "#ff2d55" : "rgba(255, 255, 255, 0.95)",
                       fontSize: "3.8rem", cursor: "pointer",
                       transition: "transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-                      transform: isLiked ? "scale(1.15)" : "scale(1)",
+                      transform: isFavorited ? "scale(1.15)" : "scale(1)",
                       filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))",
                     }}
-                    onClick={() => setIsLiked(!isLiked)}
-                    title="Like Song"
+                    onClick={() => window.electronAPI?.toggleFavorite?.()}
+                    title={isFavorited ? "Remove from Favorites" : "Add to Favorites"}
                   >
-                    {isLiked ? "♥" : "♡"}
+                    {isFavorited ? "♥" : "♡"}
                   </button>
                 </div>
 
                 {/* Bottom Media Controls */}
                 <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center", width: "100%" }}>
                   <button
+                    className="icon-btn"
                     style={{ ...ICON_BTN, opacity: isShuffle ? 1 : 0.45 }}
-                    onClick={() => setIsShuffle(!isShuffle)}
-                    title="Shuffle"
+                    onClick={() => window.electronAPI?.toggleShuffle?.()}
+                    title={isShuffle ? "Shuffle: on" : "Shuffle: off"}
                   >
-                    🔀
+                    <IconShuffle />
                   </button>
                   <button
+                    className="icon-btn"
                     style={ICON_BTN_LG}
                     onClick={() => window.electronAPI?.previousTrack?.()}
                     title="Previous Track"
                   >
-                    ⏮
+                    <IconPrev />
                   </button>
                   <button
+                    className="icon-btn"
                     style={PLAY_PAUSE_BTN}
                     onClick={() => window.electronAPI?.togglePlayPause?.()}
                     title="Play / Pause"
                   >
-                    {state?.status === "playing" ? "❚❚" : "▶"}
+                    {state?.status === "playing" ? <IconPause /> : <IconPlay />}
                   </button>
                   <button
+                    className="icon-btn"
                     style={ICON_BTN_LG}
                     onClick={() => window.electronAPI?.nextTrack?.()}
                     title="Next Track"
                   >
-                    ⏭
+                    <IconNext />
                   </button>
                   <button
-                    style={{ ...ICON_BTN, opacity: isRepeat ? 1 : 0.45 }}
-                    onClick={() => setIsRepeat(!isRepeat)}
-                    title="Repeat"
+                    className="icon-btn"
+                    style={{ ...ICON_BTN, opacity: repeatMode === "off" ? 0.45 : 1 }}
+                    onClick={() => window.electronAPI?.cycleRepeat?.()}
+                    title={`Repeat: ${repeatMode}`}
                   >
-                    🔁
+                    {repeatMode === "one" ? <IconRepeatOne /> : <IconRepeat />}
                   </button>
                 </div>
               </div>
             </div>
 
             {hasTrack && duration > 0 && (
-              <div style={PROGRESS_ROW}>
+              <div className="progress-row">
                 <div style={TIMESTAMP}>{formatTime(currentTime)}</div>
                 <div
                   style={PROGRESS_BAR}
@@ -1256,16 +1433,23 @@ function App() {
                 <div style={TIMESTAMP}>{formatTime(duration)}</div>
               </div>
             )}
-            <div style={SONG_TITLE}>{title || "No Track Playing"}</div>
-            <div style={SONG_ARTIST}>{artist || "Apple Music"}</div>
+            <div className="song-title">{title || "No Track Playing"}</div>
+            <div className="song-artist">{artist || "Apple Music"}</div>
             {showLoader && <div style={LOADER_BAR}><div style={{ width: "60%", height: "100%", background: "rgba(255,255,255,0.4)", borderRadius: 2, animation: "slide 1.2s ease-in-out infinite" }} /></div>}
           </div>
           <div style={{ flex: 1, height: "100vh", WebkitAppRegion: "no-drag" }}>
-            {hasLyrics ? <LyricsView parsedLyrics={parsedLyrics} activeIndices={activeIndices} currentTime={currentTime} rawClockPosRef={rawClockPosRef} accent={displayAccent} />
+            {hasLyrics ? <LyricsView parsedLyrics={parsedLyrics} activeIndices={activeIndices} currentTime={currentTime} rawClockPosRef={rawClockPosRef} accent={displayAccent} reducedMotion={reducedMotion} offset={lyricsOffset} />
             : <div style={FALLBACK}>{hasTrack ? <><div style={FALLBACK_TITLE}>{fallbackText}</div><div style={FALLBACK_SUB}>{title} — {artist}</div></> : <div style={FALLBACK_TITLE}>{message}</div>}</div>}
           </div>
         </div>
       )}
+      {offsetToast && (
+        <div className="align-banner">
+          Lyric offset {lyricsOffset > 0 ? "+" : ""}{lyricsOffset.toFixed(1)}s
+          {lyricsOffset === 0 ? " (reset)" : lyricsOffset > 0 ? " — later" : " — earlier"}
+        </div>
+      )}
+      <AlignBanner status={alignStatus} now={currentTime} />
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
       {DEBUG && <div style={DEBUG_BAR}>{debugInfo}</div>}
     </div>

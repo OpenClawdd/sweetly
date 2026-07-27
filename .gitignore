@@ -178,3 +178,7 @@ src/components/cli-sync
 
 CHANGELOG.md
 .sweetly-token
+
+# Python bytecode from scripts/
+__pycache__/
+*.pyc

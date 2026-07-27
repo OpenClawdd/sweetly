@@ -1,10 +1,11 @@
 import { app, BrowserWindow, globalShortcut, ipcMain, screen, session } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { fetchAppleMusicState, pollAppleMusic, setPlayerPosition, togglePlayPause, skipToNext, skipToPrevious } from "./appleMusic.js";
+import { fetchAppleMusicState, pollAppleMusic, setPlayerPosition, togglePlayPause, skipToNext, skipToPrevious, toggleShuffle, cycleRepeat, toggleFavorite } from "./appleMusic.js";
 import { setMediaUserToken } from "./appleMusicApi.js";
 import { fetchLyricsData } from "./lyrics/fetcher.js";
 import { saveCustomLyrics } from "./lyrics/sources/custom.js";
+import { setLyricsUpdatedListener, setAlignStatusListener, cancelAlignment, getActiveJobs } from "./lyrics/autoAligner.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PRELOAD_PATH = path.join(__dirname, "../../build/preload/index.js");
@@ -69,6 +70,12 @@ function onMusicState(state) {
 
   if (wouldSkip) {
     return;
+  }
+
+  // Track changed mid-capture — whatever we were recording is now the wrong
+  // song, so stop it rather than aligning the next track's audio.
+  if (lastSentTrackKey && trackKey !== lastSentTrackKey && lastMusicState?.track) {
+    cancelAlignment(lastMusicState.track.nameCleaned, lastMusicState.track.artistCleaned);
   }
 
   lastSentStatus = status;
@@ -161,7 +168,11 @@ function createWindow() {
   if (devServerUrl) {
     console.log("[Sweetly-Main] Loading dev server URL:", devServerUrl);
     mainWindow.loadURL(devServerUrl);
-    mainWindow.webContents.openDevTools({ mode: "detach" });
+    // Opt-in: the detached DevTools window otherwise covers the overlay on
+    // every dev run. SWEETLY_DEVTOOLS=1 bun run dev
+    if (process.env.SWEETLY_DEVTOOLS === "1") {
+      mainWindow.webContents.openDevTools({ mode: "detach" });
+    }
   } else {
     const filePath = path.join(__dirname, "../renderer/index.html");
     console.log("[Sweetly-Main] Loading file:", filePath);
@@ -206,12 +217,41 @@ app.whenReady().then(async () => {
     console.log("[Sweetly-Main] No media user token found (Apple Music API disabled)");
   }
 
+  // When a background alignment finishes, tell the renderer to re-fetch — the
+  // freshly written TTML is picked up by the custom source, which runs first.
+  setAlignStatusListener((payload) => {
+    console.log("[Sweetly-Main] Align status:", payload.phase, payload.name || "");
+    safeSend("align-status", payload);
+  });
+
+  setLyricsUpdatedListener((name, artist) => {
+    console.log("[Sweetly-Main] Alignment ready, notifying renderer:", name, artist);
+    safeSend("lyrics-updated", { name, artist });
+  });
+
   createWindow();
   const registered = globalShortcut.register("CommandOrControl+Shift+F", toggleFullscreen);
   console.log("[Sweetly-Main] Global shortcut Cmd+Shift+F registered:", registered);
 });
 
 app.on("window-all-closed", () => {
+  // An alignment records for the length of the track. Quitting here would kill
+  // the ffmpeg child mid-capture and throw away the whole run, so stay alive
+  // until the job finishes and then exit on its own.
+  const jobs = getActiveJobs();
+  if (jobs.length > 0) {
+    console.log(`[Sweetly-Main] Window closed but ${jobs.length} alignment job(s) running — finishing first:`, jobs.join(", "));
+    const timer = setInterval(() => {
+      if (getActiveJobs().length === 0) {
+        clearInterval(timer);
+        console.log("[Sweetly-Main] Alignment finished, quitting");
+        globalShortcut.unregisterAll();
+        app.quit();
+      }
+    }, 2000);
+    return;
+  }
+
   console.log("[Sweetly-Main] All windows closed, quitting");
   globalShortcut.unregisterAll();
   app.quit();
@@ -244,7 +284,13 @@ ipcMain.handle("fetch-lyrics", async (_event, { name, artist, album }) => {
     console.log("[Sweetly-Main] fetch-lyrics: rejected (bad name)");
     return null;
   }
-  const result = await fetchLyricsData(name, artist, album);
+  // The aligner needs to know how long the track is and whether we're near the
+  // start, so it can decide whether a full capture is still possible.
+  const playback = {
+    duration: lastMusicState?.track?.duration,
+    position: lastMusicState?.track?.position,
+  };
+  const result = await fetchLyricsData(name, artist, album, playback);
   console.log("[Sweetly-Main] fetch-lyrics: result=", result ? `data=${!!result.data} art=${!!result.artworkUrl}` : "null");
   return result;
 });
@@ -282,3 +328,9 @@ ipcMain.handle("previous-track", async () => {
   console.log("[Sweetly-Main] IPC: previous-track");
   return await skipToPrevious();
 });
+
+ipcMain.handle("toggle-shuffle", async () => await toggleShuffle());
+
+ipcMain.handle("cycle-repeat", async () => await cycleRepeat());
+
+ipcMain.handle("toggle-favorite", async () => await toggleFavorite());

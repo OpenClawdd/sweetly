@@ -1,4 +1,5 @@
 import Store from "electron-store";
+import { parseTtmlXmlToJson } from "./lyrics/ttmlXml.js";
 
 const store = new Store({ name: "sweetly-config" });
 
@@ -30,6 +31,62 @@ function getDeveloperToken() {
 function cleanPrimaryArtist(artist) {
   if (!artist) return "";
   return artist.split(/[&,]|\bx\b|feat\./i)[0].trim();
+}
+
+/** Lowercase, drop feat./with clauses and punctuation, for loose comparison. */
+function normalizeForMatch(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\s*[([]\s*(feat|ft|with)\.?\s[^)\]]*[)\]]/g, "")
+    .replace(/\s*-\s*single$|\s*-\s*ep$/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/**
+ * Rank a search hit against what's actually playing.
+ *
+ * Apple's catalog carries an explicit and a clean cut of most tracks, and the
+ * relevance order is not stable — adding the album to the query is enough to
+ * float the clean version to the top. Taking songs[0] therefore produced
+ * fully-censored lyrics ("****" on ass/bitch/shit) at random. Explicit wins
+ * ties, and DJ-mix re-releases are pushed down.
+ */
+function scoreSong(song, name, artist, album) {
+  const a = song?.attributes || {};
+  const qName = normalizeForMatch(name);
+  const qArtist = normalizeForMatch(artist);
+  const qAlbum = normalizeForMatch(album);
+  const sName = normalizeForMatch(a.name);
+  const sArtist = normalizeForMatch(a.artistName);
+  const sAlbum = normalizeForMatch(a.albumName);
+
+  let score = 0;
+  if (sName && qName) {
+    if (sName === qName) score += 100;
+    else if (sName.startsWith(qName) || qName.startsWith(sName)) score += 60;
+    else if (sName.includes(qName) || qName.includes(sName)) score += 30;
+    else score -= 40;
+  }
+  if (sArtist && qArtist) {
+    if (sArtist === qArtist) score += 40;
+    else if (sArtist.includes(qArtist) || qArtist.includes(sArtist)) score += 25;
+    else score -= 20;
+  }
+  if (sAlbum && qAlbum && (sAlbum === qAlbum || sAlbum.includes(qAlbum) || qAlbum.includes(sAlbum))) {
+    score += 20;
+  }
+
+  // A remix/DJ-mix cut has different timings than the album version.
+  const rawName = String(a.name || "");
+  if (/\[(mixed|remix)\]|\bdj mix\b/i.test(`${rawName} ${a.albumName || ""}`) && !/mix|remix/i.test(name || "")) {
+    score -= 70;
+  }
+
+  if (a.contentRating === "explicit") score += 12;
+  else if (a.contentRating === "clean") score -= 12;
+
+  return score;
 }
 
 async function getStorefront(mediaUserToken) {
@@ -81,7 +138,7 @@ async function searchTrack(name, artist, album, mediaUserToken) {
     const params = new URLSearchParams({
       term: queryWithAlbum,
       types: "songs",
-      limit: "3",
+      limit: "10",
       l: sf.language,
     });
     const res = await fetch(
@@ -100,9 +157,16 @@ async function searchTrack(name, artist, album, mediaUserToken) {
       const json = await res.json();
       const songs = json?.results?.songs?.data;
       if (songs && songs.length > 0) {
-        const song = songs[0];
+        const ranked = songs
+          .map((s) => ({ s, score: scoreSong(s, name, primaryArtist, album) }))
+          .sort((a, b) => b.score - a.score);
+        const { s: song, score } = ranked[0];
         const artworkUrl = song?.attributes?.artwork?.url?.replace("{w}", "640").replace("{h}", "640") || "";
-        console.log("[AppleMusicAPI] Found:", song.id, song.attributes?.name, "artwork:", artworkUrl ? artworkUrl.slice(0, 60) + "..." : "NONE");
+        console.log(
+          "[AppleMusicAPI] Found:", song.id, song.attributes?.name,
+          `[${song.attributes?.contentRating || "none"}] score=${score}`,
+          "artwork:", artworkUrl ? artworkUrl.slice(0, 60) + "..." : "NONE",
+        );
         return { id: song.id, type: "songs", artworkUrl };
       }
     }
@@ -222,118 +286,4 @@ export async function findAppleMusicLyrics(name, artist, album) {
     lyrics,
     artworkUrl: track.artworkUrl || null,
   };
-}
-
-function parseTtmlXmlToJson(xml) {
-  const parseTime = (ts) => {
-    if (!ts) return 0;
-    if (typeof ts === "number") return ts;
-    const clean = String(ts)
-      .replace(/s$/i, "")
-      .replace(/^['"]+|['"]+$/g, "")
-      .trim();
-    if (!clean) return 0;
-    const parts = clean.split(":");
-    if (parts.length === 3) {
-      return parseFloat(parts[0] || 0) * 3600 + parseFloat(parts[1] || 0) * 60 + parseFloat(parts[2] || 0);
-    }
-    if (parts.length === 2) {
-      return parseFloat(parts[0] || 0) * 60 + parseFloat(parts[1] || 0);
-    }
-    return parseFloat(clean) || 0;
-  };
-
-  const cleanText = (raw) => {
-    if (!raw) return "";
-    return raw
-      .replace(/<[^>]+>/g, "")
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&apos;/g, "'")
-      .replace(/\s+/g, " ")
-      .trim();
-  };
-
-  const cleanTextKeepTrailing = (raw) => {
-    if (!raw) return { text: "", endsWithSpace: false };
-    let text = raw
-      .replace(/<[^>]+>/g, "")
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&apos;/g, "'")
-      .replace(/\s+/g, " ");
-    const endsWithSpace = text.endsWith(" ");
-    return { text: text.trim(), endsWithSpace };
-  };
-
-  const lines = [];
-
-  const pRegex = /<p\b[^>]*>([\s\S]*?)<\/p>/g;
-  let pm;
-  while ((pm = pRegex.exec(xml)) !== null) {
-    const pTag = pm[0];
-    const pContent = pm[1];
-    const pBegin = (pTag.match(/begin="([^"]+)"/) || [])[1];
-    const pEnd = (pTag.match(/end="([^"]+)"/) || [])[1];
-
-    const lead = {
-      StartTime: parseTime(pBegin || "0"),
-      EndTime: parseTime(pEnd || pBegin || "0"),
-      Syllables: [],
-      IsBackground: /(?:ttm:)?role="(?:Background|x-bg)"|agent="v(?:[2-9]|1[0-9])"/i.test(pTag),
-    };
-
-    const spanRegex = /<(?:span|sy)\b[^>]*>([\s\S]*?)<\/(?:span|sy)>/g;
-    const spanMatches = [];
-    let sm;
-    while ((sm = spanRegex.exec(pContent)) !== null) {
-      spanMatches.push({ fullTag: sm[0], content: sm[1], index: sm.index });
-    }
-
-    for (let si = 0; si < spanMatches.length; si++) {
-      const { fullTag, content, index } = spanMatches[si];
-      const { text: rawText, endsWithSpace } = cleanTextKeepTrailing(content);
-      const sBegin = (fullTag.match(/begin="([^"]+)"/) || [])[1];
-      const sEnd = (fullTag.match(/end="([^"]+)"/) || [])[1];
-
-      if (!rawText) continue;
-
-      lead.Syllables.push({
-        Text: rawText,
-        StartTime: parseTime(sBegin || "0"),
-        EndTime: parseTime(sEnd || "0"),
-        IsPartOfWord: !endsWithSpace,
-      });
-
-      if (si < spanMatches.length - 1) {
-        const nextIndex = spanMatches[si + 1].index;
-        const between = pContent.slice(index + fullTag.length, nextIndex);
-        if (/\s/.test(between)) {
-          lead.Syllables[lead.Syllables.length - 1].IsPartOfWord = false;
-        }
-      }
-    }
-
-    if (lead.Syllables.length > 0) {
-      lines.push({ Lead: lead, OppositeAligned: false });
-    } else {
-      const plainText = cleanText(pContent);
-      if (plainText) {
-        lines.push({ Lead: { StartTime: lead.StartTime, EndTime: lead.EndTime, Syllables: [{ Text: plainText, StartTime: lead.StartTime, EndTime: lead.EndTime, IsPartOfWord: false }] }, OppositeAligned: false });
-      }
-    }
-  }
-
-  if (lines.length > 0) {
-    console.log("[AppleMusicAPI] Parsed TTML:", lines.length, "lines");
-    return { Content: lines, Type: "Syllable" };
-  }
-
-  return null;
 }

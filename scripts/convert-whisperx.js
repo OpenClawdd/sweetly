@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { customKey } from "../src/main/lyrics/customKey.js";
 
 const args = process.argv.slice(2);
 if (args.length < 3) {
@@ -67,8 +68,7 @@ if (!fs.existsSync(customDir)) {
   fs.mkdirSync(customDir, { recursive: true });
 }
 
-const safeFilename = `${trackName}_${artistName}`.toLowerCase().replace(/[^a-z0-9_-]/g, "_") + ".ttml";
-const outPath = path.join(customDir, safeFilename);
+const outPath = path.join(customDir, `${customKey(trackName, artistName)}.ttml`);
 
 fs.writeFileSync(outPath, ttml, "utf8");
 console.log("\n✅ SUCCESS! Converted WhisperX JSON -> Sweetly Word-Level TTML!");

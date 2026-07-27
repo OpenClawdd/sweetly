@@ -16,7 +16,27 @@ try {
     } catch (e) { console.error("[Sweetly-Preload] music-update handler error:", e); }
   });
 
+  let lyricsUpdatedCallback = null;
+  ipcRenderer.on("lyrics-updated", (_event, payload) => {
+    try { lyricsUpdatedCallback?.(payload); }
+    catch (e) { console.error("[Sweetly-Preload] lyrics-updated handler error:", e); }
+  });
+
+  let alignStatusCallback = null;
+  ipcRenderer.on("align-status", (_event, payload) => {
+    try { alignStatusCallback?.(payload); }
+    catch (e) { console.error("[Sweetly-Preload] align-status handler error:", e); }
+  });
+
   contextBridge.exposeInMainWorld("electronAPI", {
+    onLyricsUpdated: (callback) => {
+      lyricsUpdatedCallback = callback;
+      return () => { lyricsUpdatedCallback = null; };
+    },
+    onAlignStatus: (callback) => {
+      alignStatusCallback = callback;
+      return () => { alignStatusCallback = null; };
+    },
     onMusicUpdate: (callback) => {
       musicUpdateCallback = callback;
       while (musicUpdateBuffer.length > 0) {
@@ -33,6 +53,9 @@ try {
   togglePlayPause: () => ipcRenderer.invoke("toggle-play-pause"),
   nextTrack: () => ipcRenderer.invoke("next-track"),
   previousTrack: () => ipcRenderer.invoke("previous-track"),
+  toggleShuffle: () => ipcRenderer.invoke("toggle-shuffle"),
+  cycleRepeat: () => ipcRenderer.invoke("cycle-repeat"),
+  toggleFavorite: () => ipcRenderer.invoke("toggle-favorite"),
 });
 
   console.log("[Sweetly-Preload] contextBridge ready");

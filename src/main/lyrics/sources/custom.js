@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { customKey, customKeyCandidates, stripLyricsExt, slugify } from "../customKey.js";
+import { parseTtmlXmlToJson } from "../ttmlXml.js";
 
 const CUSTOM_DIR = path.join(os.homedir(), ".sweetly-custom");
 
@@ -12,46 +14,83 @@ function ensureCustomDir() {
   }
 }
 
-export function getCustomLyrics(name, artist) {
-  ensureCustomDir();
-  if (!name) return null;
-
-  const cleanName = name.replace(/\s*\([^)]*\)/g, "").replace(/\s*\[[^\]]*\]/g, "").trim();
-  const cleanArtist = (artist || "").replace(/\s*\([^)]*\)/g, "").trim();
-
-  const candidates = [
-    sanitizeFilename(`${name}_${artist}`),
-    sanitizeFilename(`${cleanName}_${cleanArtist}`),
-    sanitizeFilename(name),
-    sanitizeFilename(cleanName),
-  ];
-
+function listCustomFiles() {
   try {
-    const files = fs.readdirSync(CUSTOM_DIR);
-    for (const cand of candidates) {
-      if (!cand) continue;
-      const matchedFile = files.find((f) => {
-        const base = f.replace(/\.ttml$/i, "").replace(/\.json$/i, "");
-        return base === cand || base.replace(/_+/g, "_") === cand.replace(/_+/g, "_");
-      });
+    return fs.readdirSync(CUSTOM_DIR).filter((f) => /\.ttml$/i.test(f));
+  } catch {
+    return [];
+  }
+}
 
-      if (matchedFile) {
-        const filePath = path.join(CUSTOM_DIR, matchedFile);
-        const content = fs.readFileSync(filePath, "utf8");
-        console.log("[Sweetly-Main] Loaded custom local TTML from disk:", filePath);
-        return content;
-      }
+/**
+ * Last-resort match for near-miss filenames (punctuation drift, a missing
+ * "feat." clause, a truncated artist). Requires every token of the shorter
+ * side to appear in the longer one, so "in_da_club_50_cent" still matches
+ * "in_da_club_50_cent_g_unit" but never matches an unrelated track.
+ */
+function fuzzyMatch(files, candidates) {
+  for (const cand of candidates) {
+    const candTokens = cand.split("_").filter(Boolean);
+    if (candTokens.length < 2) continue;
+
+    for (const file of files) {
+      const base = slugify(stripLyricsExt(file));
+      const baseTokens = new Set(base.split("_").filter(Boolean));
+      if (candTokens.every((t) => baseTokens.has(t))) return file;
     }
-  } catch (e) {
-    console.log("[Sweetly-Main] Error scanning custom TTML dir:", e.message);
   }
   return null;
 }
 
+export function getCustomLyrics(name, artist) {
+  if (!name) return null;
+  ensureCustomDir();
+
+  const files = listCustomFiles();
+  if (files.length === 0) return null;
+
+  const candidates = customKeyCandidates(name, artist);
+  const byKey = new Map();
+  for (const file of files) {
+    const key = slugify(stripLyricsExt(file));
+    if (!byKey.has(key)) byKey.set(key, file);
+  }
+
+  let matched = null;
+  for (const cand of candidates) {
+    if (byKey.has(cand)) {
+      matched = byKey.get(cand);
+      break;
+    }
+  }
+  if (!matched) matched = fuzzyMatch(files, candidates);
+  if (!matched) return null;
+
+  try {
+    const filePath = path.join(CUSTOM_DIR, matched);
+    const content = fs.readFileSync(filePath, "utf8");
+
+    // Files on disk are TTML XML, but the renderer's parser consumes the
+    // spicylyrics {Content:[...]} shape. Returning the raw XML meant custom
+    // lyrics always parsed to zero lines.
+    const parsed = parseTtmlXmlToJson(content);
+    if (!parsed?.Content?.length) {
+      console.log("[Sweetly-Main] Custom TTML parsed to no lines:", filePath);
+      return null;
+    }
+    console.log("[Sweetly-Main] Loaded custom local TTML from disk:", filePath, `(${parsed.Content.length} lines)`);
+    return parsed;
+  } catch (e) {
+    console.log("[Sweetly-Main] Error reading custom TTML:", e.message);
+    return null;
+  }
+}
+
 export function saveCustomLyrics(name, artist, ttml) {
   ensureCustomDir();
-  const safeName = sanitizeFilename(`${name}_${artist}`);
-  const filePath = path.join(CUSTOM_DIR, `${safeName}.ttml`);
+  const key = customKey(name, artist);
+  if (!key) return false;
+  const filePath = path.join(CUSTOM_DIR, `${key}.ttml`);
 
   try {
     fs.writeFileSync(filePath, ttml, "utf8");
