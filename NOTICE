@@ -1,0 +1,51 @@
+Sweetly Lyrics Overlay
+Copyright (C) 2026 Noah Mendieta
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version. See the LICENSE file for the full text.
+
+--------------------------------------------------------------------------------
+
+This work is a derivative of:
+
+  Spicy Lyrics
+  Copyright (C) Spikerko
+  https://github.com/Spikerko/spicy-lyrics
+  Licensed under the GNU Affero General Public License v3.0
+
+Spicy Lyrics is itself credited by its author as inspired by Beautiful Lyrics
+(https://github.com/surfbryce/beautiful-lyrics).
+
+--------------------------------------------------------------------------------
+
+SIGNIFICANT CHANGES FROM UPSTREAM
+
+Sweetly Lyrics Overlay retains Spicy Lyrics' renderer, animation system, styling
+and lyrics-application code substantially unmodified, and changes the following:
+
+  * Host platform. Upstream runs as a Spicetify extension inside the Spotify
+    desktop client. This work runs as a standalone Electron application on
+    macOS, adding src/main/, src/preload/ and src/renderer/.
+
+  * Player source. Upstream reads playback state from Spicetify.Player. This
+    work reads it from Apple Music via an AppleScript bridge, adapted through
+    src/renderer/adapter/AppleMusicPlayer.ts, which implements the same export
+    surface as upstream's src/components/Global/SpotifyPlayer.ts.
+
+  * Lyrics sourcing. This work adds src/main/lyrics/, providing its own
+    provider chain, track matching, and a local forced-alignment pipeline
+    (scripts/align_lyrics.py) for generating word-level timings.
+
+  * Custom lyrics storage. Upstream stores user-supplied TTML in IndexedDB.
+    This work stores it on the filesystem under ~/.sweetly-custom/ so that the
+    alignment pipeline and the user interface share a single location.
+
+Files under src/ other than main/, preload/ and renderer/ are upstream Spicy
+Lyrics code, kept diffable against the tracking clone in spicy-lyrics/ so that
+modifications remain visible via `diff -r`.
+
+This project is not affiliated with or endorsed by Spikerko, Spicy Lyrics, or
+Apple Inc. "Spicy Lyrics" is the name of the upstream project and is not used
+as the identity of this work.

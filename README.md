@@ -1,30 +1,62 @@
-# Spicy Lyrics
+# Sweetly Lyrics Overlay
 
-### Check out our *[Sitee](https://yoursit.ee/lyrics)*
-#### Make your own at -> [https://yoursit.ee](https://yoursit.ee)
+A floating, always-on-top lyrics overlay for **Apple Music** on macOS. Word-by-word
+karaoke lyrics, animated dynamic backgrounds, and a vibrancy-glass window that sits
+over whatever you're doing.
 
-# How to install Spicy Lyrics
+> **This is a fork of [Spicy Lyrics](https://github.com/Spikerko/spicy-lyrics) by
+> [Spikerko](https://github.com/Spikerko)**, licensed under AGPL-3.0. The renderer,
+> animation system and styling are Spicy Lyrics' work. Sweetly replaces the host
+> platform (Spotify/Spicetify → standalone Electron), the player source
+> (`Spicetify.Player` → Apple Music via AppleScript), and adds its own lyrics
+> sourcing and forced-alignment pipeline. See [NOTICE](./NOTICE) for the full list
+> of changes.
+>
+> Spicy Lyrics is itself credited by its author as inspired by
+> [Beautiful Lyrics](https://github.com/surfbryce/beautiful-lyrics).
+>
+> Not affiliated with or endorsed by Spikerko, Spicy Lyrics, or Apple Inc.
 
-## 1. Using the Spicetify Marketplace (recommended)
-1. Search `Spicy Lyrics` under the "Extensions" tab
-2. Click the Install button on the Spicy Lyrics extension
-3. All done!
+## Running it
 
-## 2. Externally (not recommended)
-1. Make sure you have [Spicetify](https://spicetify.app) installed
-2. Download the [spicy-lyrics.mjs](./builds/spicy-lyrics.mjs) file
-3. Put the file inside the Spicetify Extensions directory. Find the correct directory here: [https://spicetify.app/docs/customization/extensions#manual-installation](https://spicetify.app/docs/customization/extensions#manual-installation)
-4. Then, run ```spicetify config extensions spicy-lyrics.mjs```
-5. Then apply Spicetify by running ```spicetify apply```
-6. All done!
+```bash
+bun install
+bun run dev
+```
 
-[![Github Version](https://img.shields.io/github/v/release/spikerko/spicy-lyrics)](https://github.com/spikerko/spicy-lyrics/) [![Github Stars badge](https://img.shields.io/github/stars/spikerko/spicy-lyrics?style=social)](https://github.com/spikerko/spicy-lyrics/) [![Discord Badge](https://dcbadge.limes.pink/api/server/uqgXU5wh8j?style=flat)](https://discord.com/invite/uqgXU5wh8j)
+The Electron sandbox must be disabled for the AppleScript bridge — `bun run dev`
+already sets `ELECTRON_DISABLE_SANDBOX=1`.
 
-Hi, I'm Spikerko (the person who made this repo). I've been really passionate about this project, and I'm really happy for this project.
+**First run:** the initial `osascript` call will fail until macOS grants Automation
+access to Music. Play a song to trigger the permission prompt, then enable it under
+*System Settings → Privacy & Security → Automation*. Polling recovers on its own.
 
-I've seen a problem with the Spotify Lyrics. They're plain, just static colors. So I wanted to build my own version. And here it is: **Spicy Lyrics**. Hope you like it!
+## Building
 
-![Extension Example](./previews/page.gif)
+```bash
+bun run build          # main/preload/renderer → build/
+```
 
+The Spicetify packaging target (`builds/spicy-lyrics.mjs`, configured in
+`spice.config.ts`) is inherited from upstream and is not actively developed here.
 
-*Inspired by [Beautiful Lyrics](https://github.com/surfbryce/beautiful-lyrics)*
+## Layout
+
+| Path | What it is |
+| --- | --- |
+| `src/main/` | Electron main process — window, Apple Music bridge, all network IO |
+| `src/main/lyrics/` | Lyrics provider chain, track matching, alignment pipeline |
+| `src/preload/` | `contextBridge` exposing `electronAPI` to the renderer |
+| `src/renderer/` | Renderer entry and the Apple Music adapter |
+| everything else in `src/` | Upstream Spicy Lyrics code, kept diffable against `spicy-lyrics/` |
+| `spicy-lyrics/` | Clean upstream clone, used to pull and re-diff future releases |
+| `scripts/align_lyrics.py` | Forced-alignment / ASR pipeline producing word-level timings |
+| `docs/superpowers/specs/` | Design specs |
+
+Since upstream code is kept unmodified, `diff -r src spicy-lyrics/src` shows exactly
+what has been changed.
+
+## License
+
+[AGPL-3.0](./LICENSE), inherited from Spicy Lyrics. If you distribute this or a
+derivative, it must remain AGPL-3.0 with source available and attribution preserved.

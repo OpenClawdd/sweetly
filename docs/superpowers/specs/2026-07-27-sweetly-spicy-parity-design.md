@@ -39,6 +39,33 @@ Three facts make the swap tractable:
    `Spicetify.Player`. Nearly all player access in the codebase goes through it,
    making it a single clean seam.
 
+## Licensing
+
+Spicy Lyrics is **AGPL-3.0**. Sweetly is already a derivative work — `src/` is a
+verbatim copy of Spicy 6.2.3 and the repository already carries the upstream
+LICENSE file. This design does not change that status; running the renderer
+explicitly rather than reimplementing it has the same licensing consequence as
+the fork that already exists.
+
+Obligations attach on distribution, not on personal use. Section 13 (remote
+network interaction) is inert for a local desktop application, so in practice
+AGPL-3.0 behaves as GPL-3.0 here. If distributed, the work must remain
+AGPL-3.0, with source available, notices preserved, and significant changes
+stated.
+
+Handled as part of Phase 1:
+
+- `NOTICE` added, crediting Spikerko and Spicy Lyrics, enumerating the
+  significant changes, and disclaiming affiliation.
+- `README.md` rewritten. It was upstream's verbatim, describing installation of
+  Spicy Lyrics via the Spicetify Marketplace.
+- `manifest.json` corrected. It declared `"name": "Spicy Lyrics"` with Spikerko
+  as sole author. Copyright license is not trademark license: the code may be
+  copied, the product identity may not be adopted.
+
+Keeping `src/` byte-identical to upstream serves compliance directly — the diff
+against `spicy-lyrics/` is the statement of changes.
+
 ## Delivery in two phases
 
 The work splits cleanly, and each half is independently useful:
