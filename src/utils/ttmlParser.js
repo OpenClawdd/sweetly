@@ -1,0 +1,133 @@
+/**
+ * Parses spicylyrics.org API response format (TTML-based syllable data)
+ * into word-level structures with letter splitting and instrumental dot lines.
+ */
+
+export function parseTTMLData(apiResponse) {
+  if (!apiResponse || !apiResponse.Content) return { lines: [], type: "none" };
+
+  const type = apiResponse.Type || "Unknown";
+  const rawLines = [];
+
+  for (const contentLine of apiResponse.Content) {
+    const lead = contentLine.Lead;
+    if (!lead || !lead.Syllables) continue;
+
+    const words = groupSyllablesIntoWords(lead.Syllables);
+    rawLines.push({
+      words,
+      startTime: lead.StartTime,
+      endTime: lead.EndTime,
+      oppositeAligned: contentLine.OppositeAligned === true,
+      isBackground: lead.IsBackground === true,
+    });
+  }
+
+  // Insert instrumental gap dot lines for gaps >= 3.0 seconds
+  const lines = [];
+  for (let i = 0; i < rawLines.length; i++) {
+    const line = rawLines[i];
+    if (i > 0) {
+      const prevEnd = rawLines[i - 1].endTime;
+      const currStart = line.startTime;
+      if (prevEnd != null && currStart - prevEnd >= 3.0) {
+        const gapStart = prevEnd;
+        const gapEnd = currStart;
+        const availableDur = Math.max(0.5, (gapEnd - 0.5) - gapStart);
+        const dotDur = availableDur / 3;
+
+        const dots = [0, 1, 2].map((idx) => ({
+          text: "•",
+          startTime: gapStart + idx * dotDur,
+          endTime: gapStart + (idx + 1) * dotDur,
+          isDot: true,
+        }));
+
+        lines.push({
+          isDotLine: true,
+          words: dots,
+          dots,
+          startTime: gapStart,
+          endTime: gapEnd,
+          isBackground: false,
+        });
+      }
+    }
+    lines.push(line);
+  }
+
+  return { lines, type };
+}
+
+function groupSyllablesIntoWords(syllables) {
+  if (!syllables || syllables.length === 0) return [];
+
+  const words = [];
+  let currentWord = null;
+
+  for (const syl of syllables) {
+    if (!currentWord) {
+      currentWord = {
+        text: syl.Text || "",
+        startTime: syl.StartTime ?? 0,
+        endTime: syl.EndTime ?? 0,
+        isPartOfWord: syl.IsPartOfWord === true,
+      };
+    } else {
+      currentWord.text += syl.Text || "";
+      currentWord.endTime = syl.EndTime ?? currentWord.endTime;
+      currentWord.isPartOfWord = true;
+    }
+
+    if (syl.IsPartOfWord !== true) {
+      finalizeWord(currentWord);
+      words.push(currentWord);
+      currentWord = null;
+    }
+  }
+
+  if (currentWord) {
+    finalizeWord(currentWord);
+    words.push(currentWord);
+  }
+
+  return words;
+}
+
+function finalizeWord(word) {
+  if (!word || !word.text) return;
+  word.isLetterGroup = false;
+}
+
+export function getActiveIndices(lines, currentTimeSeconds) {
+  if (!lines || lines.length === 0) return { line: -1, word: -1 };
+
+  let activeLine = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    if (currentTimeSeconds >= lines[i].startTime) {
+      activeLine = i;
+    } else {
+      break;
+    }
+  }
+
+  if (activeLine === -1) return { line: -1, word: -1 };
+
+  const line = lines[activeLine];
+  let activeWord = -1;
+  const words = line.isDotLine ? line.dots : line.words;
+
+  if (words) {
+    for (let j = 0; j < words.length; j++) {
+      if (currentTimeSeconds >= words[j].startTime) {
+        activeWord = j;
+      } else {
+        break;
+      }
+    }
+  }
+
+  return { line: activeLine, word: activeWord };
+}
+
