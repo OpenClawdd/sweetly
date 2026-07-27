@@ -181,7 +181,7 @@ const LYRIC_LINE = {
   display: "flex", flexWrap: "wrap",
   alignItems: "baseline", justifyContent: "flex-start",
   marginBottom: 6, willChange: "opacity",
-  padding: "0 12px",
+  padding: "0 12px", width: "100%",
   wordBreak: "keep-all",
   overflowWrap: "break-word",
   cursor: "pointer",
