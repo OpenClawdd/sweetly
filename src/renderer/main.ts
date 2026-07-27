@@ -51,6 +51,7 @@ function trackKey(): string | null {
 async function start(): Promise<void> {
   // One dynamic import of the barrel, not several in parallel — see upstream.ts
   // for why the evaluation order matters.
+  const upstream = await import("./upstream.ts");
   const {
     PageView,
     ApplyDynamicBackground,
@@ -62,7 +63,12 @@ async function start(): Promise<void> {
     requestPositionSync,
     $currentLyricsType,
     $currentlyFetching,
-  } = await import("./upstream.ts");
+    IntervalManager,
+    ScrollingIntervalTime,
+  } = upstream;
+  // ScrollToActiveLine and especially ScrollSimplebar are deliberately NOT
+  // destructured — ScrollSimplebar is a live `export let` that gets nulled and
+  // reassigned on every track. Read both off `upstream`. See upstream.ts.
 
   // Hand upstream's smoothed clock to the adapter. Doing it here rather than by
   // import avoids an ESM cycle — see the comment in AppleMusicPlayer.ts.
@@ -81,6 +87,23 @@ async function start(): Promise<void> {
   await PageView.Open(mount);
 
   installViewControlBehaviour();
+
+  // app.tsx:765-769, which our entry never reproduced. Without it
+  // ScrollToActiveLine is dead code — app.tsx:767 is its only invocation site in
+  // the whole tree — so the active line is never centred, and because
+  // scrollLyricsToIndex (LyricsVirtualizer.ts:977) is called from exactly one
+  // place (ScrollToActiveLine.ts:155) the virtualizer never advances past its
+  // initial mount window. It is also the only thing that clears HideLineBlur
+  // (ScrollToActiveLine.ts:424) after a user wheel event.
+  //
+  // ScrollingIntervalTime is Infinity, which IntervalManager maps to a
+  // per-animation-frame callback rather than a setInterval. The guards inside
+  // ScrollToActiveLine make it a cheap no-op until lyrics land.
+  new IntervalManager(ScrollingIntervalTime, () => {
+    if (upstream.ScrollSimplebar) {
+      upstream.ScrollToActiveLine(upstream.ScrollSimplebar);
+    }
+  }).Start();
 
   let lastKey: string | null = null;
 
