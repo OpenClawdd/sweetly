@@ -12,23 +12,38 @@ function ensureCustomDir() {
   }
 }
 
-function sanitizeFilename(str) {
-  return str.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
-}
-
 export function getCustomLyrics(name, artist) {
   ensureCustomDir();
-  const safeName = sanitizeFilename(`${name}_${artist}`);
-  const filePath = path.join(CUSTOM_DIR, `${safeName}.ttml`);
+  if (!name) return null;
 
-  if (fs.existsSync(filePath)) {
-    try {
-      const content = fs.readFileSync(filePath, "utf8");
-      console.log("[Sweetly-Main] Loaded custom local TTML from disk:", filePath);
-      return content;
-    } catch (e) {
-      console.log("[Sweetly-Main] Error reading custom TTML:", e.message);
+  const cleanName = name.replace(/\s*\([^)]*\)/g, "").replace(/\s*\[[^\]]*\]/g, "").trim();
+  const cleanArtist = (artist || "").replace(/\s*\([^)]*\)/g, "").trim();
+
+  const candidates = [
+    sanitizeFilename(`${name}_${artist}`),
+    sanitizeFilename(`${cleanName}_${cleanArtist}`),
+    sanitizeFilename(name),
+    sanitizeFilename(cleanName),
+  ];
+
+  try {
+    const files = fs.readdirSync(CUSTOM_DIR);
+    for (const cand of candidates) {
+      if (!cand) continue;
+      const matchedFile = files.find((f) => {
+        const base = f.replace(/\.ttml$/i, "").replace(/\.json$/i, "");
+        return base === cand || base.replace(/_+/g, "_") === cand.replace(/_+/g, "_");
+      });
+
+      if (matchedFile) {
+        const filePath = path.join(CUSTOM_DIR, matchedFile);
+        const content = fs.readFileSync(filePath, "utf8");
+        console.log("[Sweetly-Main] Loaded custom local TTML from disk:", filePath);
+        return content;
+      }
     }
+  } catch (e) {
+    console.log("[Sweetly-Main] Error scanning custom TTML dir:", e.message);
   }
   return null;
 }

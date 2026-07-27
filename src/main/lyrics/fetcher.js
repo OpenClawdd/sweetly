@@ -9,14 +9,16 @@ import { triggerAutoAlignment } from "./autoAligner.js";
 export async function fetchLyricsData(name, artist, album) {
   console.log("[Sweetly-Main] fetchLyricsData:", name, artist, "album:", album);
 
+  const appleResultPromise = findAppleMusicLyrics(name, artist, album);
+
   const customData = getCustomLyrics(name, artist);
   if (customData) {
-    console.log("[Sweetly-Main] Using custom lyrics");
-    return { data: customData, artworkUrl: null };
+    console.log("[Sweetly-Main] Using custom local lyrics for:", name);
+    const appleResult = await appleResultPromise;
+    return { data: customData, provider: "spicylyrics", artworkUrl: appleResult?.artworkUrl || null };
   }
 
-  // 1. Fetch Apple Music catalog search FIRST for native syllable-level TTML and artwork!
-  const appleResult = await findAppleMusicLyrics(name, artist, album);
+  const appleResult = await appleResultPromise;
   const appleLyrics = appleResult?.lyrics;
   const appleArtwork = appleResult?.artworkUrl;
 
