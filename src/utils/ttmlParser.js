@@ -39,12 +39,68 @@ export function parseTTMLData(apiResponse) {
     }
   }
 
+  // Clean parenthetical background vocal splitting and parenthesis stripping
+  const splitRawLines = [];
+  for (const line of rawLines) {
+    if (!line.words || line.words.length === 0) continue;
+
+    if (line.isBackground) {
+      const cleanWords = line.words.map((w) => ({
+        ...w,
+        text: w.text ? w.text.replace(/^\(/, "").replace(/\)$/, "").replace(/\s*[\(\)]\s*/g, " ").trim() : "",
+      })).filter((w) => w.text.length > 0);
+
+      if (cleanWords.length > 0) {
+        splitRawLines.push({ ...line, words: cleanWords });
+      }
+      continue;
+    }
+
+    const mainWords = [];
+    const bgWords = [];
+    let inParen = false;
+
+    for (const w of line.words) {
+      const txt = w.text ? w.text.trim() : "";
+      if (txt.startsWith("(") || inParen) {
+        inParen = true;
+        const cleanTxt = txt.replace(/^\(/, "").replace(/\)$/, "").trim();
+        if (cleanTxt) {
+          bgWords.push({ ...w, text: cleanTxt });
+        }
+        if (txt.endsWith(")")) {
+          inParen = false;
+        }
+      } else {
+        mainWords.push(w);
+      }
+    }
+
+    if (mainWords.length > 0) {
+      splitRawLines.push({
+        ...line,
+        words: mainWords,
+        endTime: mainWords[mainWords.length - 1].endTime,
+      });
+    }
+
+    if (bgWords.length > 0) {
+      splitRawLines.push({
+        ...line,
+        words: bgWords,
+        startTime: bgWords[0].startTime,
+        endTime: bgWords[bgWords.length - 1].endTime,
+        isBackground: true,
+      });
+    }
+  }
+
   // Insert instrumental gap dot lines for gaps >= 3.0 seconds
   const lines = [];
-  for (let i = 0; i < rawLines.length; i++) {
-    const line = rawLines[i];
+  for (let i = 0; i < splitRawLines.length; i++) {
+    const line = splitRawLines[i];
     if (i > 0) {
-      const prevEnd = rawLines[i - 1].endTime;
+      const prevEnd = splitRawLines[i - 1].endTime;
       const currStart = line.startTime;
       if (prevEnd != null && currStart - prevEnd >= 3.0) {
         const gapStart = prevEnd;

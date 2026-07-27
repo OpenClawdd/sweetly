@@ -5,8 +5,8 @@ import { fetchLRCLib } from "./sources/lrclib.js";
 import { fetchGenius } from "./sources/genius.js";
 import { scrapeSpotifySearch, fetchSpicyLyricsData } from "./sources/spotify.js";
 
-export async function fetchLyricsData(name, artist) {
-  console.log("[Sweetly-Main] fetchLyricsData:", name, artist);
+export async function fetchLyricsData(name, artist, album) {
+  console.log("[Sweetly-Main] fetchLyricsData:", name, artist, "album:", album);
 
   const customData = getCustomLyrics(name, artist);
   if (customData) {
@@ -15,7 +15,7 @@ export async function fetchLyricsData(name, artist) {
   }
 
   // Fetch Apple Music catalog search in parallel for album artwork
-  const appleResultPromise = findAppleMusicLyrics(name, artist);
+  const appleResultPromise = findAppleMusicLyrics(name, artist, album);
 
   // 1. Query Spicy-Sparks lrc-api / BiniLyrics FIRST for community TTMLs!
   try {

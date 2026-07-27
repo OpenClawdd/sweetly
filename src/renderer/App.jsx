@@ -251,7 +251,7 @@ class ErrorBoundary extends React.Component {
 async function fetchLyricsForTrack(track) {
   if (!track?.nameCleaned || track.nameCleaned === "Unknown Track") return null;
   try {
-    const r = await window.electronAPI?.fetchLyrics?.({ name: track.nameCleaned, artist: track.artistCleaned });
+    const r = await window.electronAPI?.fetchLyrics?.({ name: track.nameCleaned, artist: track.artistCleaned, album: track.album });
     if (!r) return null;
     return { parsed: r.data ? parseTTMLData(r.data) : null, artworkUrl: r.artworkUrl || null };
   } catch (e) { err("fetchLyrics:", e); return null; }

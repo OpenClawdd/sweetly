@@ -69,17 +69,17 @@ async function getStorefront(mediaUserToken) {
   }
 }
 
-async function searchTrack(name, artist, mediaUserToken) {
+async function searchTrack(name, artist, album, mediaUserToken) {
   const sf = await getStorefront(mediaUserToken);
   if (!sf) return null;
 
   const primaryArtist = cleanPrimaryArtist(artist);
-  const query = `${name} ${primaryArtist}`;
-  console.log("[AppleMusicAPI] Searching:", query);
+  const queryWithAlbum = album ? `${name} ${primaryArtist} ${album}` : `${name} ${primaryArtist}`;
+  console.log("[AppleMusicAPI] Searching:", queryWithAlbum);
 
   try {
     const params = new URLSearchParams({
-      term: query,
+      term: queryWithAlbum,
       types: "songs",
       limit: "3",
       l: sf.language,
@@ -96,24 +96,27 @@ async function searchTrack(name, artist, mediaUserToken) {
         },
       }
     );
-    if (!res.ok) {
-      console.log("[AppleMusicAPI] Search failed:", res.status);
-      return null;
+    if (res.ok) {
+      const json = await res.json();
+      const songs = json?.results?.songs?.data;
+      if (songs && songs.length > 0) {
+        const song = songs[0];
+        const artworkUrl = song?.attributes?.artwork?.url?.replace("{w}", "640").replace("{h}", "640") || "";
+        console.log("[AppleMusicAPI] Found:", song.id, song.attributes?.name, "artwork:", artworkUrl ? artworkUrl.slice(0, 60) + "..." : "NONE");
+        return { id: song.id, type: "songs", artworkUrl };
+      }
     }
-    const json = await res.json();
-    const songs = json?.results?.songs?.data;
-    if (!songs || songs.length === 0) {
-      console.log("[AppleMusicAPI] No results for:", query);
-      return null;
-    }
-    const song = songs[0];
-    const artworkUrl = song?.attributes?.artwork?.url?.replace("{w}", "640").replace("{h}", "640") || "";
-    console.log("[AppleMusicAPI] Found:", song.id, song.attributes?.name, "artwork:", artworkUrl ? artworkUrl.slice(0, 60) + "..." : "NONE");
-    return { id: song.id, type: "songs", artworkUrl };
   } catch (e) {
     console.error("[AppleMusicAPI] Search error:", e.message);
-    return null;
   }
+
+  // Fallback: retry without album if album search returned no results
+  if (album) {
+    console.log("[AppleMusicAPI] Retrying search without album...");
+    return searchTrack(name, artist, null, mediaUserToken);
+  }
+
+  return null;
 }
 
 async function fetchLyrics(trackId, mediaUserToken) {
@@ -202,14 +205,14 @@ async function fetchLyrics(trackId, mediaUserToken) {
   return null;
 }
 
-export async function findAppleMusicLyrics(name, artist) {
+export async function findAppleMusicLyrics(name, artist, album) {
   const mediaUserToken = getMediaUserToken();
   if (!mediaUserToken) {
     console.log("[AppleMusicAPI] No media-user-token configured");
     return null;
   }
 
-  const track = await searchTrack(name, artist, mediaUserToken);
+  const track = await searchTrack(name, artist, album, mediaUserToken);
   if (!track) return null;
 
   const rawTtml = await fetchLyrics(track.id, mediaUserToken);

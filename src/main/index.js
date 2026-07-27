@@ -238,13 +238,13 @@ ipcMain.handle("toggle-fullscreen", async () => {
   }
 });
 
-ipcMain.handle("fetch-lyrics", async (_event, { name, artist }) => {
-  console.log("[Sweetly-Main] IPC: fetch-lyrics name=", name, "artist=", artist);
+ipcMain.handle("fetch-lyrics", async (_event, { name, artist, album }) => {
+  console.log("[Sweetly-Main] IPC: fetch-lyrics name=", name, "artist=", artist, "album=", album);
   if (!name || name === "Unknown Track") {
     console.log("[Sweetly-Main] fetch-lyrics: rejected (bad name)");
     return null;
   }
-  const result = await fetchLyricsData(name, artist);
+  const result = await fetchLyricsData(name, artist, album);
   console.log("[Sweetly-Main] fetch-lyrics: result=", result ? `data=${!!result.data} art=${!!result.artworkUrl}` : "null");
   return result;
 });
