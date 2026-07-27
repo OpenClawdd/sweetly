@@ -573,12 +573,17 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, rawClockPosRef, 
 
           const words = line.words || [];
           const lineStartTime = words[0]?.startTime ?? line.startTime ?? 0;
+          const isNextBackground = lines[li + 1]?.isBackground === true;
 
           return (
             <div
               key={`line-${li}`}
               ref={(el) => registerLineRef(li, el)}
               className={`lyric-line ${isActiveLine ? "active" : ""} ${isBackground ? "background-vocal" : ""} ${isOpposite ? "opposite-aligned" : ""}`}
+              style={{
+                marginTop: isBackground ? 2 : 12,
+                marginBottom: isNextBackground ? 2 : (isBackground ? 16 : 14),
+              }}
               onClick={() => { if (lineStartTime >= 0) window.electronAPI?.seekTo(lineStartTime); }}
             >
               {words.map((w, wi) => (

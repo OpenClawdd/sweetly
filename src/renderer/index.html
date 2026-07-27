@@ -152,16 +152,24 @@
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
       }
 
-      /* Sub-line Background Vocal Styling (1:1 SpicyLyrics) */
+      /* Line Grouping for 1:1 Apple Music & SpicyLyrics Sub-lines */
+      .lyric-line-group {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+        margin-bottom: 24px;
+      }
+
+      /* Sub-line Background Vocal Styling (1:1 SpicyLyrics / Apple Music - stacked directly under lead line) */
       .lyric-line.background-vocal {
         font-style: normal !important;
-        font-size: 0.76em !important;
+        font-size: 0.72em !important;
         opacity: 0.65;
         width: 100% !important;
-        flex-basis: 100% !important;
-        margin-top: 2px !important;
-        margin-bottom: 10px !important;
-        clear: both !important;
+        margin-top: 4px !important;
+        margin-bottom: 0px !important;
+        padding-left: 2px !important;
       }
       .lyric-line.opposite-aligned {
         justify-content: flex-end;
