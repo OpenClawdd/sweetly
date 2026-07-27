@@ -174,7 +174,7 @@ const LYRICS_INNER = {
   display: "flex", flexDirection: "column",
   alignItems: "flex-start",
   marginTop: "25cqh", marginBottom: "45cqh",
-  maxWidth: 800,
+  width: "100%", maxWidth: "none",
 };
 
 const LYRIC_LINE = {
@@ -190,8 +190,8 @@ const LYRIC_LINE = {
 };
 
 const WORD_BASE = {
-  fontWeight: 700, lineHeight: 1.4,
-  fontSize: "clamp(1.4rem, 2.4cqi, 2.6rem)", display: "inline",
+  fontWeight: 700, lineHeight: 1.35,
+  fontSize: "clamp(1.8rem, 3.4vw, 3.8rem)", display: "inline",
   letterSpacing: "0.01em", marginRight: "0.25em",
   WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
   backgroundClip: "text",
@@ -253,7 +253,7 @@ async function fetchLyricsForTrack(track) {
   try {
     const r = await window.electronAPI?.fetchLyrics?.({ name: track.nameCleaned, artist: track.artistCleaned, album: track.album });
     if (!r) return null;
-    return { parsed: r.data ? parseTTMLData(r.data) : null, artworkUrl: r.artworkUrl || null };
+    return { parsed: r.data ? parseTTMLData(r.data, r.provider) : null, artworkUrl: r.artworkUrl || null };
   } catch (e) { err("fetchLyrics:", e); return null; }
 }
 
@@ -407,7 +407,8 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, rawClockPosRef, 
 
       const curTime = rawClockPosRef?.current || currentTimeRef.current;
       const accentColor = accentRef.current || "#ffffff";
-      const activeLineIdx = activeLine ?? -1;
+      const liveActive = getActiveIndices(lines, curTime);
+      const activeLineIdx = liveActive.line >= 0 ? liveActive.line : (activeLine ?? -1);
 
       if (isUserScrollingRef.current !== wasUserScrollingRef.current) {
         wasUserScrollingRef.current = isUserScrollingRef.current;
@@ -593,8 +594,12 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, rawClockPosRef, 
           );
         })}
         <div className="lyrics-footer">
-          <div className="footer-provider">Provided by: Spicy Lyrics</div>
-          <div className="footer-community">These lyrics have been provided by our community</div>
+          <div className="footer-provider">
+            {parsedLyrics?.provider === "spicylyrics" ? "Provided by: Spicy Lyrics" : parsedLyrics?.provider === "lrclib" ? "Provided by: LRCLIB" : "Provided by: Apple Music"}
+          </div>
+          {parsedLyrics?.provider === "spicylyrics" && (
+            <div className="footer-community">These lyrics have been provided by our community</div>
+          )}
         </div>
       </div>
       {isUserScrolling && (

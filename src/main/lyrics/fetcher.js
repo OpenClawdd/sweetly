@@ -23,7 +23,7 @@ export async function fetchLyricsData(name, artist, album) {
     if (biniLyrics) {
       console.log("[Sweetly-Main] Successfully fetched community TTML from Spicy-Sparks/lrc-api for:", name);
       const appleResult = await appleResultPromise;
-      return { data: biniLyrics, artworkUrl: appleResult?.artworkUrl || null };
+      return { data: biniLyrics, provider: "spicylyrics", artworkUrl: appleResult?.artworkUrl || null };
     }
   } catch (e) {
     console.log("[Sweetly-Main] Spicy-Sparks lrc-api fetch attempt failed:", e.message);
@@ -37,7 +37,7 @@ export async function fetchLyricsData(name, artist, album) {
       if (spicyData) {
         console.log("[Sweetly-Main] Successfully fetched community TTML from spicylyrics.org for:", name);
         const appleResult = await appleResultPromise;
-        return { data: spicyData, artworkUrl: appleResult?.artworkUrl || null };
+        return { data: spicyData, provider: "spicylyrics", artworkUrl: appleResult?.artworkUrl || null };
       }
     }
   } catch (e) {
@@ -48,39 +48,34 @@ export async function fetchLyricsData(name, artist, album) {
   const appleLyrics = appleResult?.lyrics;
   const appleArtwork = appleResult?.artworkUrl;
 
-  // 2. Fallback to Apple Music word-level TTML
+  // 3. Fallback to Apple Music word-level TTML
   if (appleLyrics?.Content) {
     const wordCount = appleLyrics.Content.reduce((sum, line) => sum + (line.Lead?.Syllables?.length || 0), 0);
     const isWordLevel = wordCount > appleLyrics.Content.length * 1.3;
     console.log("[Sweetly-Main] Apple Music:", appleLyrics.Content.length, "lines,", wordCount, "words, wordLevel:", isWordLevel);
     if (isWordLevel) {
-      return { data: appleLyrics, artworkUrl: appleArtwork || null };
+      return { data: appleLyrics, provider: "apple", artworkUrl: appleArtwork || null };
     }
   }
 
-  // 3. Fallbacks (BiniLyrics, LRCLIB, Genius, Apple Music line-level)
-  const biniLyrics = await fetchBiniLyrics(name, artist);
-  if (biniLyrics) {
-    console.log("[Sweetly-Main] Got word-level lyrics from BiniLyrics");
-    return { data: biniLyrics, artworkUrl: appleArtwork || null };
+  // 4. Fallbacks (LRCLIB, Genius, Apple Music line-level)
+  const lrcLib = await fetchLRCLib(name, artist);
+  if (lrcLib) {
+    console.log("[Sweetly-Main] Got synced lyrics from LRCLIB");
+    return { data: lrcLib, provider: "lrclib", artworkUrl: appleArtwork || null };
   }
 
-  const lrclib = await fetchLRCLib(name, artist);
-  if (lrclib) {
-    console.log("[Sweetly-Main] Got lyrics from LRCLIB");
-    return { data: lrclib, artworkUrl: appleArtwork || null };
+  if (appleLyrics) {
+    console.log("[Sweetly-Main] Fallback to Apple Music line-level TTML");
+    return { data: appleLyrics, provider: "apple", artworkUrl: appleArtwork || null };
   }
 
   const genius = await fetchGenius(name, artist);
   if (genius) {
-    console.log("[Sweetly-Main] Got lyrics from Genius");
-    return { data: genius, artworkUrl: appleArtwork || null };
+    console.log("[Sweetly-Main] Fallback to Genius plain text");
+    return { data: genius, provider: "genius", artworkUrl: appleArtwork || null };
   }
 
-  if (appleLyrics) {
-    console.log("[Sweetly-Main] Falling back to Apple Music line-level");
-    return { data: appleLyrics, artworkUrl: appleArtwork || null };
-  }
-  if (appleArtwork) return { data: null, artworkUrl: appleArtwork };
+  if (appleArtwork) return { data: null, provider: "apple", artworkUrl: appleArtwork };
   return null;
 }

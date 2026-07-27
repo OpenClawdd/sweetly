@@ -3,8 +3,8 @@
  * into word-level structures with letter splitting and instrumental dot lines.
  */
 
-export function parseTTMLData(apiResponse) {
-  if (!apiResponse || !apiResponse.Content) return { lines: [], type: "none" };
+export function parseTTMLData(apiResponse, provider = "apple") {
+  if (!apiResponse || !apiResponse.Content) return { lines: [], type: "none", provider };
 
   const type = apiResponse.Type || "Unknown";
   const rawLines = [];
@@ -39,6 +39,8 @@ export function parseTTMLData(apiResponse) {
     }
   }
 
+  const IS_SECTION_TAG = /^\(?\[?(intro|outro|chorus|verse|bridge|refrain|hook|pre-chorus|post-chorus|instrumental|interlude|solo|breakdown|spoken)/i;
+
   // Clean parenthetical background vocal splitting and parenthesis stripping
   const splitRawLines = [];
   for (const line of rawLines) {
@@ -48,7 +50,7 @@ export function parseTTMLData(apiResponse) {
       const cleanWords = line.words.map((w) => ({
         ...w,
         text: w.text ? w.text.replace(/^\(/, "").replace(/\)$/, "").replace(/\s*[\(\)]\s*/g, " ").trim() : "",
-      })).filter((w) => w.text.length > 0);
+      })).filter((w) => w.text.length > 0 && !IS_SECTION_TAG.test(w.text));
 
       if (cleanWords.length > 0) {
         splitRawLines.push({ ...line, words: cleanWords });
@@ -62,11 +64,17 @@ export function parseTTMLData(apiResponse) {
 
     for (const w of line.words) {
       const txt = w.text ? w.text.trim() : "";
+      if (IS_SECTION_TAG.test(txt)) {
+        mainWords.push(w);
+        continue;
+      }
       if (txt.startsWith("(") || inParen) {
         inParen = true;
         const cleanTxt = txt.replace(/^\(/, "").replace(/\)$/, "").trim();
-        if (cleanTxt) {
+        if (cleanTxt && !IS_SECTION_TAG.test(cleanTxt)) {
           bgWords.push({ ...w, text: cleanTxt });
+        } else if (cleanTxt) {
+          mainWords.push(w);
         }
         if (txt.endsWith(")")) {
           inParen = false;
@@ -131,7 +139,7 @@ export function parseTTMLData(apiResponse) {
     lines.push(line);
   }
 
-  return { lines, type };
+  return { lines, type, provider };
 }
 
 function ensureWordLevelTimings(line) {
