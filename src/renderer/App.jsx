@@ -123,14 +123,38 @@ const ART_PLACEHOLDER = {
 const IMG_FIT = { width: "100%", height: "100%", objectFit: "cover" };
 const NOTE = { opacity: 0.12, color: "#fff", fontSize: 56 };
 
+const ICON_BTN = {
+  background: "none", border: "none", color: "#fff",
+  fontSize: "1.1rem", cursor: "pointer", opacity: 0.85,
+  transition: "transform 0.1s ease, opacity 0.15s ease",
+  padding: 6, display: "flex", alignItems: "center", justifyContent: "center",
+};
+
+const ICON_BTN_LG = {
+  background: "rgba(255,255,255,0.15)", border: "none", color: "#fff",
+  borderRadius: "50%", width: 40, height: 40,
+  fontSize: "1.2rem", cursor: "pointer", opacity: 0.95,
+  display: "flex", alignItems: "center", justifyContent: "center",
+  backdropFilter: "blur(6px)", transition: "transform 0.15s ease, background 0.15s ease",
+};
+
+const PLAY_PAUSE_BTN = {
+  background: "#fff", border: "none", color: "#000",
+  borderRadius: "50%", width: 52, height: 52,
+  fontSize: "1.4rem", cursor: "pointer", fontWeight: "bold",
+  display: "flex", alignItems: "center", justifyContent: "center",
+  boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+  transition: "transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+};
+
 const PROGRESS_ROW = {
   width: 320, display: "flex", alignItems: "center", gap: 10,
   flexShrink: 0, marginBottom: 16,
 };
 
 const PROGRESS_BAR = {
-  flex: 1, height: 3, background: "rgba(255,255,255,0.08)",
-  borderRadius: 2, overflow: "hidden",
+  flex: 1, height: 4, background: "rgba(255,255,255,0.15)",
+  borderRadius: 2, overflow: "hidden", cursor: "pointer",
 };
 
 const PROGRESS_FILL = (pct, accent) => ({
@@ -714,6 +738,24 @@ function App() {
   const [kawarpReady, setKawarpReady] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [artFloatY, setArtFloatY] = useState(0);
+  const [controlsVisible, setControlsVisible] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [isShuffle, setIsShuffle] = useState(false);
+  const [isRepeat, setIsRepeat] = useState(false);
+  const controlsTimeoutRef = useRef(null);
+
+  const handleMouseMove = useCallback(() => {
+    setControlsVisible(true);
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    controlsTimeoutRef.current = setTimeout(() => {
+      setControlsVisible(false);
+    }, 3000);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    setControlsVisible(false);
+  }, []);
 
   const accentVelRef = useRef(0);
   const accentCurrentRef = useRef(null);
@@ -1063,7 +1105,7 @@ function App() {
   if (!fontsReady) return <div style={CONTAINER}><div style={FALLBACK}><div style={FALLBACK_TITLE}>Sweetly</div></div></div>;
 
   return (
-    <div style={CONTAINER}>
+    <div style={CONTAINER} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
       <div style={BG_STATIC(artworkUrl, palette)} />
       <canvas ref={kawarpCanvasRef} style={{ ...kawarpBgStyle, opacity: kawarpReady ? 1 : 0, transition: "opacity 0.5s" }} />
       <div style={VIGNETTE} />
@@ -1102,12 +1144,118 @@ function App() {
       ) : (
         <div style={{ display: "flex", flex: 1, width: "100%", position: "relative", zIndex: 2 }}>
           <div style={LEFT_PANEL}>
-            <div style={{ ...ART_PLACEHOLDER, transform: `translateY(${artFloatY}px)` }}>
+            <div style={{ ...ART_PLACEHOLDER, transform: `translateY(${artFloatY}px)`, position: "relative", overflow: "hidden" }}>
               {artworkUrl
                 ? <ArtworkImage url={artworkUrl} />
                 : <div style={NOTE}>♪</div>}
+
+              {/* Artwork Hover Controls Overlay */}
+              <div
+                style={{
+                  position: "absolute", inset: 0,
+                  background: "rgba(0, 0, 0, 0.45)",
+                  backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+                  opacity: controlsVisible ? 1 : 0,
+                  pointerEvents: controlsVisible ? "auto" : "none",
+                  transition: "opacity 0.25s ease, transform 0.25s ease",
+                  display: "flex", flexDirection: "column",
+                  justifyContent: "space-between", padding: 14,
+                  borderRadius: 16, zIndex: 10,
+                }}
+              >
+                {/* Top Control Bar */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button style={ICON_BTN} onClick={() => window.electronAPI?.toggleFullscreen?.()} title="Fullscreen Mode">
+                      ⛶
+                    </button>
+                    <button style={ICON_BTN} onClick={() => setShowSettings(true)} title="Settings">
+                      ⚙
+                    </button>
+                  </div>
+                  <button style={ICON_BTN} onClick={() => window.close()} title="Close Window">
+                    ✕
+                  </button>
+                </div>
+
+                {/* Center Heart Like Button */}
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", flex: 1 }}>
+                  <button
+                    style={{
+                      background: "none", border: "none",
+                      color: isLiked ? "#ff2d55" : "rgba(255, 255, 255, 0.95)",
+                      fontSize: "3.8rem", cursor: "pointer",
+                      transition: "transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                      transform: isLiked ? "scale(1.15)" : "scale(1)",
+                      filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))",
+                    }}
+                    onClick={() => setIsLiked(!isLiked)}
+                    title="Like Song"
+                  >
+                    {isLiked ? "♥" : "♡"}
+                  </button>
+                </div>
+
+                {/* Bottom Media Controls */}
+                <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center", width: "100%" }}>
+                  <button
+                    style={{ ...ICON_BTN, opacity: isShuffle ? 1 : 0.45 }}
+                    onClick={() => setIsShuffle(!isShuffle)}
+                    title="Shuffle"
+                  >
+                    🔀
+                  </button>
+                  <button
+                    style={ICON_BTN_LG}
+                    onClick={() => window.electronAPI?.previousTrack?.()}
+                    title="Previous Track"
+                  >
+                    ⏮
+                  </button>
+                  <button
+                    style={PLAY_PAUSE_BTN}
+                    onClick={() => window.electronAPI?.togglePlayPause?.()}
+                    title="Play / Pause"
+                  >
+                    {state?.status === "playing" ? "❚❚" : "▶"}
+                  </button>
+                  <button
+                    style={ICON_BTN_LG}
+                    onClick={() => window.electronAPI?.nextTrack?.()}
+                    title="Next Track"
+                  >
+                    ⏭
+                  </button>
+                  <button
+                    style={{ ...ICON_BTN, opacity: isRepeat ? 1 : 0.45 }}
+                    onClick={() => setIsRepeat(!isRepeat)}
+                    title="Repeat"
+                  >
+                    🔁
+                  </button>
+                </div>
+              </div>
             </div>
-            {hasTrack && duration > 0 && <div style={PROGRESS_ROW}><div style={TIMESTAMP}>{formatTime(currentTime)}</div><div style={PROGRESS_BAR}><div style={PROGRESS_FILL(progressPct, displayAccent)} /></div><div style={TIMESTAMP}>{formatTime(duration)}</div></div>}
+
+            {hasTrack && duration > 0 && (
+              <div style={PROGRESS_ROW}>
+                <div style={TIMESTAMP}>{formatTime(currentTime)}</div>
+                <div
+                  style={PROGRESS_BAR}
+                  onClick={(e) => {
+                    if (!duration) return;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const clickX = e.clientX - rect.left;
+                    const pct = Math.max(0, Math.min(1, clickX / rect.width));
+                    window.electronAPI?.seekTo?.(pct * duration);
+                  }}
+                  title="Click to seek position"
+                >
+                  <div style={PROGRESS_FILL(progressPct, displayAccent)} />
+                </div>
+                <div style={TIMESTAMP}>{formatTime(duration)}</div>
+              </div>
+            )}
             <div style={SONG_TITLE}>{title || "No Track Playing"}</div>
             <div style={SONG_ARTIST}>{artist || "Apple Music"}</div>
             {showLoader && <div style={LOADER_BAR}><div style={{ width: "60%", height: "100%", background: "rgba(255,255,255,0.4)", borderRadius: 2, animation: "slide 1.2s ease-in-out infinite" }} /></div>}
