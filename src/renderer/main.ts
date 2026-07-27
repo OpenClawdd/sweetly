@@ -60,6 +60,8 @@ async function start(): Promise<void> {
     ApplyLyrics,
     GetProgress,
     requestPositionSync,
+    $currentLyricsType,
+    $currentlyFetching,
   } = await import("./upstream.ts");
 
   // Hand upstream's smoothed clock to the adapter. Doing it here rather than by
@@ -88,55 +90,27 @@ async function start(): Promise<void> {
     const background = document.querySelector<HTMLElement>(".spicy-dynamic-bg");
     if (background) void ApplyDynamicBackground(background);
 
+    // Upstream's fetchLyrics.ts does this in presentLyrics() (line 38-48) —
+    // publishing the type is not cosmetic bookkeeping, it is what makes the
+    // lyrics visible at all. LyricsSetter.ts:32 and LyricsAnimator.ts:451 both
+    // dispatch on $currentLyricsType; left at "None" they assign no
+    // Active/Sung/NotSung classes, and Mixed.css:75-85 only paints a
+    // background-image (the only thing that shows glyphs, since .line/.word/
+    // .letter set -webkit-text-fill-color: transparent) on .line.Active.
+    // ScrollToActiveLine.ts:113 also early-returns on "None".
+    const [content] = result;
+    if (typeof content === "string") {
+      $currentLyricsType.set("None");
+    } else {
+      $currentLyricsType.set(content.Type);
+      const container = document.querySelector<HTMLElement>(".ContentBox");
+      container?.classList.remove("LyricsHidden");
+      document.querySelector(".ContentBox .LyricsContainer")?.classList.remove("Hidden");
+    }
+    $currentlyFetching.set(false);
+
     await ApplyLyrics(result as any);
 
-    // Temporary: report why lyrics are or are not visible. The applyers fail
-    // silently — they return early on a false store rather than throwing — so
-    // the DOM is the only place the answer actually lives.
-    setTimeout(() => {
-      const page = document.querySelector<HTMLElement>("#SpicyLyricsPage");
-      const container = document.querySelector<HTMLElement>(".LyricsContainer");
-      const content = document.querySelector<HTMLElement>(".LyricsContent");
-      const line = document.querySelector<HTMLElement>(".line");
-      console.log(
-        "[Sweetly] dom:",
-        JSON.stringify({
-          pageClasses: page?.className ?? null,
-          pageSize: page ? [page.clientWidth, page.clientHeight] : null,
-          containerClasses: container?.className ?? null,
-          containerSize: container ? [container.clientWidth, container.clientHeight] : null,
-          contentChildren: content?.childElementCount ?? null,
-          contentSize: content ? [content.clientWidth, content.clientHeight] : null,
-          lineCount: document.querySelectorAll(".line").length,
-          lineFontSize: line ? getComputedStyle(line).fontSize : null,
-          lineOpacity: line ? getComputedStyle(line).opacity : null,
-          lineText: line?.textContent?.slice(0, 40) ?? null,
-          lineRect: line
-            ? (() => {
-                const r = line.getBoundingClientRect();
-                return [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)];
-              })()
-            : null,
-          // opacity does not inherit into getComputedStyle, so a zeroed
-          // ancestor is invisible from the line's own styles. Walk up.
-          ancestry: line
-            ? (() => {
-                const chain: string[] = [];
-                let el: HTMLElement | null = line;
-                while (el && chain.length < 8) {
-                  const cs = getComputedStyle(el);
-                  chain.push(
-                    `${el.tagName.toLowerCase()}.${(el.className || "-").toString().split(" ").join(".")}` +
-                      ` op=${cs.opacity} vis=${cs.visibility} disp=${cs.display} col=${cs.color}`,
-                  );
-                  el = el.parentElement;
-                }
-                return chain;
-              })()
-            : null,
-        }),
-      );
-    }, 2500);
   }
 
   onMusicStateChange((state) => {

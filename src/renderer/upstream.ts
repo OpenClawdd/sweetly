@@ -22,6 +22,13 @@ import { UpdateNowBar } from "../components/Utils/NowBar.ts";
 import ApplyLyrics from "../utils/Lyrics/Global/Applyer.ts";
 import GetProgress, { requestPositionSync } from "../utils/Gets/GetProgress.ts";
 import { openSettingsPanel } from "../utils/settings.ts";
+import { LyricsObject } from "../utils/Lyrics/lyrics.ts";
+import {
+  $lyricsContainerExists,
+  $currentLyricsType,
+  $currentLyricsData,
+  $currentlyFetching,
+} from "../utils/stores.ts";
 
 export {
   ApplyDynamicBackground,
@@ -38,4 +45,9 @@ export {
   GetProgress,
   requestPositionSync,
   openSettingsPanel,
+  LyricsObject,
+  $lyricsContainerExists,
+  $currentLyricsType,
+  $currentLyricsData,
+  $currentlyFetching,
 };
