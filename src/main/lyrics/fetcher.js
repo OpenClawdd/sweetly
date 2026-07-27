@@ -14,10 +14,29 @@ export async function fetchLyricsData(name, artist) {
     return { data: customData, artworkUrl: null };
   }
 
-  const appleResult = await findAppleMusicLyrics(name, artist);
+  // Fetch Apple Music catalog search in parallel for album artwork
+  const appleResultPromise = findAppleMusicLyrics(name, artist);
+
+  // 1. Query SpicyLyrics API FIRST for community-provided TTMLs!
+  try {
+    const spotifyId = await scrapeSpotifySearch(`${name} ${artist}`) || await scrapeSpotifySearch(name);
+    if (spotifyId) {
+      const spicyData = await fetchSpicyLyricsData(spotifyId);
+      if (spicyData) {
+        console.log("[Sweetly-Main] Successfully fetched community TTML from spicylyrics.org for:", name);
+        const appleResult = await appleResultPromise;
+        return { data: spicyData, artworkUrl: appleResult?.artworkUrl || null };
+      }
+    }
+  } catch (e) {
+    console.log("[Sweetly-Main] SpicyLyrics fetch attempt failed:", e.message);
+  }
+
+  const appleResult = await appleResultPromise;
   const appleLyrics = appleResult?.lyrics;
   const appleArtwork = appleResult?.artworkUrl;
 
+  // 2. Fallback to Apple Music word-level TTML
   if (appleLyrics?.Content) {
     const wordCount = appleLyrics.Content.reduce((sum, line) => sum + (line.Lead?.Syllables?.length || 0), 0);
     const isWordLevel = wordCount > appleLyrics.Content.length * 1.3;
@@ -27,6 +46,7 @@ export async function fetchLyricsData(name, artist) {
     }
   }
 
+  // 3. Fallbacks (BiniLyrics, LRCLIB, Genius, Apple Music line-level)
   const biniLyrics = await fetchBiniLyrics(name, artist);
   if (biniLyrics) {
     console.log("[Sweetly-Main] Got word-level lyrics from BiniLyrics");
@@ -43,15 +63,6 @@ export async function fetchLyricsData(name, artist) {
   if (genius) {
     console.log("[Sweetly-Main] Got lyrics from Genius");
     return { data: genius, artworkUrl: appleArtwork || null };
-  }
-
-  const spotifyId = await scrapeSpotifySearch(`${name} ${artist}`) || await scrapeSpotifySearch(name);
-  if (spotifyId) {
-    const spicyData = await fetchSpicyLyricsData(spotifyId);
-    if (spicyData) {
-      console.log("[Sweetly-Main] Got lyrics from spicylyrics");
-      return { data: spicyData, artworkUrl: appleArtwork || null };
-    }
   }
 
   if (appleLyrics) {
