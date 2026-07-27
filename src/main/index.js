@@ -278,6 +278,14 @@ ipcMain.handle("toggle-fullscreen", async () => {
   }
 });
 
+// Spicy's Close ViewControl dismisses a Spotify page; here the equivalent is
+// hiding the overlay window, which the dock icon brings back.
+ipcMain.handle("hide-window", () => {
+  console.log("[Sweetly-Main] IPC: hide-window");
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.hide();
+  return true;
+});
+
 ipcMain.handle("fetch-lyrics", async (_event, { name, artist, album }) => {
   console.log("[Sweetly-Main] IPC: fetch-lyrics name=", name, "artist=", artist, "album=", album);
   if (!name || name === "Unknown Track") {

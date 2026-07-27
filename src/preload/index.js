@@ -46,6 +46,7 @@ try {
     },
     getInitialState: () => ipcRenderer.invoke("get-initial-state"),
     toggleFullscreen: () => ipcRenderer.invoke("toggle-fullscreen"),
+    hideWindow: () => ipcRenderer.invoke("hide-window"),
     fetchLyrics: (payload) => ipcRenderer.invoke("fetch-lyrics", payload),
     setMediaUserToken: (token) => ipcRenderer.invoke("set-media-user-token", token),
   saveCustomLyrics: (name, artist, ttml) => ipcRenderer.invoke("save-custom-lyrics", { name, artist, ttml }),
