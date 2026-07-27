@@ -69,10 +69,36 @@ export function parseTTMLData(apiResponse) {
         });
       }
     }
+    if (line.words) {
+      ensureWordLevelTimings(line);
+    }
     lines.push(line);
   }
 
   return { lines, type };
+}
+
+function ensureWordLevelTimings(line) {
+  if (!line || !line.words || line.words.length === 0) return;
+  const lineStart = line.startTime ?? 0;
+  const lineEnd = line.endTime ?? (lineStart + 3);
+  const dur = lineEnd - lineStart;
+  if (dur <= 0) return;
+
+  const hasDistinct = line.words.some((w) => w.startTime != null && w.endTime != null && w.startTime > lineStart + 0.05);
+  if (hasDistinct && line.words.length > 1) return;
+
+  const totalChars = line.words.reduce((sum, w) => sum + (w.text ? w.text.length : 1), 0);
+  let curTime = lineStart;
+
+  for (let i = 0; i < line.words.length; i++) {
+    const w = line.words[i];
+    const len = w.text ? w.text.length : 1;
+    const wordDur = Math.max(0.08, (dur * len) / (totalChars || 1));
+    w.startTime = curTime;
+    w.endTime = curTime + wordDur;
+    curTime += wordDur;
+  }
 }
 
 function groupSyllablesIntoWords(syllables) {

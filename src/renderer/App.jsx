@@ -314,7 +314,7 @@ function KaraokeWord({ word, lineIndex, wordIndex, registerWordRef }) {
   );
 }
 
-function LyricsView({ parsedLyrics, activeIndices, currentTime, accent }) {
+function LyricsView({ parsedLyrics, activeIndices, currentTime, rawClockPosRef, accent }) {
   const scrollRef = useRef(null);
   const isUserScrollingRef = useRef(false);
   const userScrollTimerRef = useRef(null);
@@ -405,7 +405,7 @@ function LyricsView({ parsedLyrics, activeIndices, currentTime, accent }) {
       const dt = Math.min(0.1, (now - lastTime) / 1000);
       lastTime = now;
 
-      const curTime = currentTimeRef.current;
+      const curTime = rawClockPosRef?.current || currentTimeRef.current;
       const accentColor = accentRef.current || "#ffffff";
       const activeLineIdx = activeLine ?? -1;
 
@@ -970,6 +970,9 @@ function App() {
     }).catch(() => setFetching(false));
   }, [state?.track?.nameCleaned, state?.track?.artistCleaned, state?.status]);
 
+  const rawClockPosRef = useRef(0);
+  const lastSetTimeRef = useRef(0);
+
   // Monotonic 60fps clock with soft rate-scaling drift absorption
   useEffect(() => {
     if (state?.status !== "playing") {
@@ -991,13 +994,17 @@ function App() {
         const drift = expectedApplePos - raw;
 
         if (Math.abs(drift) > 0.05) {
-          playbackRateRef.current = Math.max(0.97, Math.min(1.03, 1 + drift * 0.15));
+          playbackRateRef.current = Math.max(0.98, Math.min(1.02, 1 + drift * 0.10));
         } else {
           playbackRateRef.current = 1;
         }
       }
 
-      setCurrentTime(raw);
+      rawClockPosRef.current = raw;
+      if (Math.abs(raw - lastSetTimeRef.current) >= 0.4) {
+        lastSetTimeRef.current = raw;
+        setCurrentTime(raw);
+      }
       rafRef.current = requestAnimationFrame(tick);
     };
 
@@ -1096,7 +1103,7 @@ function App() {
             {showLoader && <div style={LOADER_BAR}><div style={{ width: "60%", height: "100%", background: "rgba(255,255,255,0.4)", borderRadius: 2, animation: "slide 1.2s ease-in-out infinite" }} /></div>}
           </div>
           <div style={{ flex: 1, height: "100vh", WebkitAppRegion: "no-drag" }}>
-            {hasLyrics ? <LyricsView parsedLyrics={parsedLyrics} activeIndices={activeIndices} currentTime={currentTime} accent={displayAccent} />
+            {hasLyrics ? <LyricsView parsedLyrics={parsedLyrics} activeIndices={activeIndices} currentTime={currentTime} rawClockPosRef={rawClockPosRef} accent={displayAccent} />
             : <div style={FALLBACK}>{hasTrack ? <><div style={FALLBACK_TITLE}>{fallbackText}</div><div style={FALLBACK_SUB}>{title} — {artist}</div></> : <div style={FALLBACK_TITLE}>{message}</div>}</div>}
           </div>
         </div>
