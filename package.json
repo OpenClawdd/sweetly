@@ -10,7 +10,8 @@
     "build": "electron-vite build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "convert-lyrics": "node scripts/convert-whisperx.js"
+    "convert-lyrics": "node scripts/convert-whisperx.js",
+    "audit-lyrics": "node scripts/audit-lyrics-drift.mjs"
   },
   "dependencies": {
     "@kawarp/core": "^1.2.0",
