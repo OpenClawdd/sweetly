@@ -41,6 +41,10 @@ import {
 // (Syllable.ts:539). Re-exporting keeps the binding live, so consumers must read
 // it through the module namespace and must never destructure it.
 import { IntervalManager } from "../utils/IntervalManager.ts";
+// Global.Event is the bus upstream listens on for playback signals. app.tsx
+// was the only publisher; renderer/adapter/eventPump.ts now fills that role,
+// and needs the same bus instance the listeners registered against.
+import Global from "../components/Global/Global.ts";
 import { ScrollToActiveLine } from "../utils/Scrolling/ScrollToActiveLine.ts";
 import { ScrollSimplebar } from "../utils/Scrolling/Simplebar/ScrollSimplebar.ts";
 
@@ -68,4 +72,5 @@ export {
   IntervalManager,
   ScrollToActiveLine,
   ScrollSimplebar,
+  Global,
 };
