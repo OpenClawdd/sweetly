@@ -4,6 +4,7 @@ import { ProjectVersion } from "../../project/config.ts";
 export const SETTINGS_KEY = "SL:settings";
 
 function readSettingsBlob(): Record<string, any> {
+  if (typeof Spicetify === "undefined") return {};
   const raw = Spicetify.LocalStorage.get(SETTINGS_KEY);
   if (raw === null || raw === undefined) return {};
   try {
@@ -14,7 +15,9 @@ function readSettingsBlob(): Record<string, any> {
 }
 
 function saveSettingsBlob(obj: Record<string, any>) {
-  Spicetify.LocalStorage.set(SETTINGS_KEY, JSON.stringify(obj));
+  if (typeof Spicetify !== "undefined") {
+    Spicetify.LocalStorage.set(SETTINGS_KEY, JSON.stringify(obj));
+  }
 }
 
 function migrateSettingsKeys(blob: Record<string, any>): Record<string, any> {
@@ -55,6 +58,7 @@ export const $simpleLyricsModeRenderingType = persistAtom<string>(
   "calculate"
 );
 export const $minimalLyricsMode = persistAtom<boolean>("minimalLyricsMode", false);
+export const $forceWordLevel = persistAtom<boolean>("forceWordLevel", true);
 export const $skipSpicyFont = persistAtom<boolean>("skipSpicyFont", false);
 export const $showNpvDynamicBg = persistAtom<boolean>("showNpvDynamicBg", true);
 export const $lockedMediaBox = persistAtom<boolean>("lockedMediaBox", false);

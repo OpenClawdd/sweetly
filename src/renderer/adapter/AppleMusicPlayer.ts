@@ -25,6 +25,17 @@ let artworkUrl: string | null = null;
 
 export function setArtworkUrl(url: string | null): void {
   artworkUrl = url;
+  const contentBox =
+    document.querySelector<HTMLElement>("#SpicyLyricsPage .ContentBox") ||
+    document.querySelector<HTMLElement>(".ContentBox") ||
+    document.body;
+  if (contentBox) {
+    import("../../components/DynamicBG/dynamicBackground.ts")
+      .then((m) => {
+        void m.default(contentBox, "lpagebg");
+      })
+      .catch(() => {});
+  }
 }
 
 export function getArtworkUrl(): string | null {

@@ -37,14 +37,14 @@ function lyricsToPlainText(data) {
     .join("\n");
 }
 
-export async function fetchLyricsData(name, artist, album, playback = {}) {
+export async function fetchLyricsData(name, artist, album, playback = {}, opts = {}) {
   console.log("[Sweetly-Main] fetchLyricsData:", name, artist, "album:", album);
 
   // Kicked off first so the network round-trip overlaps the local disk check.
-  const appleResultPromise = safe("apple", () => findAppleMusicLyrics(name, artist, album));
+  const appleResultPromise = safe("apple", () => findAppleMusicLyrics(name, artist, album, opts));
 
   // 1. User-supplied / AI-aligned TTML in ~/.sweetly-custom
-  const customData = await safe("custom", () => getCustomLyrics(name, artist, playback.duration));
+  const customData = await safe("custom", () => getCustomLyrics(name, artist, playback.duration, opts));
   const appleResult = await appleResultPromise;
   const appleLyrics = appleResult?.lyrics;
   const appleArtwork = playback.artworkUrl || appleResult?.artworkUrl || null;

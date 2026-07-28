@@ -78,22 +78,71 @@ function isBackground(span: Element): boolean {
   );
 }
 
+function isOpposite(p: Element): boolean {
+  const agent = p.getAttribute("ttm:agent") || p.getAttributeNS(TTM_NS, "agent") || p.getAttribute("agent") || "";
+  const role = p.getAttribute("ttm:role") || p.getAttributeNS(TTM_NS, "role") || p.getAttribute("role") || "";
+  return agent === "v2" || role === "x-opposite" || /v[2-9]/.test(agent);
+}
+
 /**
  * A syllable continues the previous word when no whitespace separates them.
  * Apple encodes that space inside the span text, so trailing whitespace on
  * span N means span N+1 begins a new word.
  */
 function collectSyllables(container: Element): Syllable[] {
-  return Array.from(container.children)
-    .filter((child) => child.tagName.toLowerCase() === "span" && !isBackground(child))
-    .map((span) => {
+  const spans = Array.from(container.children).filter(
+    (child) => child.tagName.toLowerCase() === "span" && !isBackground(child),
+  );
+
+  return spans
+    .flatMap((span, index) => {
       const raw = span.textContent ?? "";
-      return {
-        Text: raw.trim(),
-        StartTime: parseTTMLTime(span.getAttribute("begin")),
-        EndTime: parseTTMLTime(span.getAttribute("end")),
-        IsPartOfWord: raw.length > 0 && !/\s$/.test(raw),
-      };
+      const isLast = index === spans.length - 1;
+      const endsWithSpace = /\s$/.test(raw);
+
+      let spaceBetween = false;
+      if (!isLast) {
+        const nextSpan = spans[index + 1];
+        let sibling = span.nextSibling;
+        while (sibling && sibling !== nextSpan) {
+          if (sibling.textContent && /\s/.test(sibling.textContent)) {
+            spaceBetween = true;
+            break;
+          }
+          sibling = sibling.nextSibling;
+        }
+      }
+
+      const isPartOfWord = !isLast && !endsWithSpace && !spaceBetween;
+      const startTime = parseTTMLTime(span.getAttribute("begin"));
+      const endTime = parseTTMLTime(span.getAttribute("end"));
+      const trimmed = raw.trim();
+
+      if (/\s/.test(trimmed)) {
+        const words = trimmed.split(/\s+/).filter(Boolean);
+        const duration = endTime > startTime ? endTime - startTime : 0;
+        return words.map((w, wi) => {
+          const wIsLast = isLast && wi === words.length - 1;
+          const wIsPartOfWord = !wIsLast && (wi < words.length - 1 ? false : isPartOfWord);
+          const wStart = duration > 0 ? startTime + Math.round((wi / words.length) * duration) : startTime;
+          const wEnd = duration > 0 ? startTime + Math.round(((wi + 1) / words.length) * duration) : endTime;
+          return {
+            Text: w,
+            StartTime: wStart,
+            EndTime: wEnd,
+            IsPartOfWord: wIsPartOfWord,
+          };
+        });
+      }
+
+      return [
+        {
+          Text: trimmed,
+          StartTime: startTime,
+          EndTime: endTime,
+          IsPartOfWord: isPartOfWord,
+        },
+      ];
     })
     .filter((syllable) => syllable.Text.length > 0);
 }
@@ -136,6 +185,7 @@ export function parseLocalTTML(ttml: string): SpicyLyrics | null {
           EndTime: parseTTMLTime(p.getAttribute("end")) || lead[lead.length - 1].EndTime,
           Syllables: lead,
         },
+        OppositeAligned: isOpposite(p),
       };
       if (background.length > 0) entry.Background = background;
       content.push(entry);

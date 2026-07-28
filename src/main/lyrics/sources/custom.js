@@ -43,7 +43,7 @@ function fuzzyMatch(files, candidates) {
   return null;
 }
 
-export function getCustomLyrics(name, artist, trackDuration) {
+export function getCustomLyrics(name, artist, trackDuration, opts = {}) {
   if (!name) return null;
   ensureCustomDir();
 
@@ -59,8 +59,9 @@ export function getCustomLyrics(name, artist, trackDuration) {
 
   let matched = null;
   for (const cand of candidates) {
-    if (byKey.has(cand)) {
-      matched = byKey.get(cand);
+    const slug = slugify(cand);
+    if (byKey.has(slug)) {
+      matched = byKey.get(slug);
       break;
     }
   }
@@ -74,7 +75,7 @@ export function getCustomLyrics(name, artist, trackDuration) {
     // Files on disk are TTML XML, but the renderer's parser consumes the
     // spicylyrics {Content:[...]} shape. Returning the raw XML meant custom
     // lyrics always parsed to zero lines.
-    const parsed = parseTtmlXmlToJson(content);
+    const parsed = parseTtmlXmlToJson(content, opts);
     if (!parsed?.Content?.length) {
       console.log("[Sweetly-Main] Custom TTML parsed to no lines:", filePath);
       return null;

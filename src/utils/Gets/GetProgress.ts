@@ -132,7 +132,10 @@ export const requestPositionSync = () => {
       .then((position: SyncedPosition) => {
         syncedPosition = position;
       })
-      .then(() => {
+      .catch((error) => {
+        console.error("Sync Position: Fail, More Details:", error);
+      })
+      .finally(() => {
         const delay = isLocallyPlaying
           ? 1 / 60
           : canSyncNonLocalTimestamp === 0
@@ -143,6 +146,7 @@ export const requestPositionSync = () => {
       });
   } catch (error) {
     console.error("Sync Position: Fail, More Details:", error);
+    setTimeout(requestPositionSync, 1000);
   }
 };
 

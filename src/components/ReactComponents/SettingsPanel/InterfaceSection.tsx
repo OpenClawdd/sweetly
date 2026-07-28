@@ -58,8 +58,6 @@ export default function InterfaceSection({ query, sectionFilter }: Props) {
         <Row
           label="View Controls Position"
           description="Where the view controls (play, scroll, etc.) appear."
-          disabled={!isGlobalNav}
-          disabledReason="Only available in Spotify's new navigation layout"
         >
           <Select
             value={viewControlsPosition}

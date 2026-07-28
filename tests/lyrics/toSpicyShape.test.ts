@@ -78,9 +78,23 @@ describe("parseLocalTTML — Syllable", () => {
     expect(result.Content[0].Lead.Syllables[0].IsPartOfWord).toBe(false);
   });
 
-  test("marks IsPartOfWord true when no space follows the syllable", () => {
+  test("marks IsPartOfWord false for line-ending syllables even with no trailing space", () => {
     const result = parseLocalTTML(SYLLABLE_TTML) as any;
-    expect(result.Content[0].Lead.Syllables[2].IsPartOfWord).toBe(true);
+    expect(result.Content[0].Lead.Syllables[2].IsPartOfWord).toBe(false);
+  });
+
+  test("marks IsPartOfWord true for mid-line syllables with no space between them", () => {
+    const ttml = `<?xml version="1.0" encoding="UTF-8"?>
+<tt xmlns="http://www.w3.org/ns/ttml">
+  <body><div>
+    <p begin="00:01.000" end="00:03.000">
+      <span begin="00:01.000" end="00:01.500">Slop</span><span begin="00:01.500" end="00:02.000">py</span>
+    </p>
+  </div></body>
+</tt>`;
+    const result = parseLocalTTML(ttml) as any;
+    expect(result.Content[0].Lead.Syllables[0].IsPartOfWord).toBe(true);
+    expect(result.Content[0].Lead.Syllables[1].IsPartOfWord).toBe(false);
   });
 
   test("separates x-bg spans into Background and keeps them out of Lead", () => {

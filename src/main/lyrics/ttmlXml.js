@@ -5,7 +5,9 @@
  * exercised in tests without pulling in electron-store, which appleMusicApi.js
  * instantiates at import time.
  */
-export function parseTtmlXmlToJson(xml) {
+import { splitLineToSyllables } from "./utils.js";
+
+export function parseTtmlXmlToJson(xml, opts = {}) {
   const parseTime = (ts) => {
     if (!ts) return 0;
     if (typeof ts === "number") return ts;
@@ -119,16 +121,40 @@ export function parseTtmlXmlToJson(xml) {
       const sBegin = (fullTag.match(/begin="([^"]+)"/) || [])[1];
       const sEnd = (fullTag.match(/end="([^"]+)"/) || [])[1];
 
-      syllables.push({
-        Text: rawText,
-        StartTime: parseTime(sBegin || "0"),
-        EndTime: parseTime(sEnd || "0"),
-        IsPartOfWord: !endsWithSpace,
-      });
-
-      if (si < spanMatches.length - 1) {
+      const isLast = si === spanMatches.length - 1;
+      let spaceBetween = false;
+      if (!isLast) {
         const between = content.slice(index + fullTag.length, spanMatches[si + 1].index);
-        if (/\s/.test(between)) syllables[syllables.length - 1].IsPartOfWord = false;
+        if (/\s/.test(between)) spaceBetween = true;
+      }
+
+      const isPartOfWord = !isLast && !endsWithSpace && !spaceBetween;
+
+      const startTime = parseTime(sBegin || "0");
+      const endTime = parseTime(sEnd || "0");
+
+      if (/\s/.test(rawText)) {
+        const words = rawText.split(/\s+/).filter(Boolean);
+        const duration = endTime > startTime ? endTime - startTime : 0;
+        words.forEach((w, wi) => {
+          const wIsLast = isLast && wi === words.length - 1;
+          const wIsPartOfWord = !wIsLast && (wi < words.length - 1 ? false : isPartOfWord);
+          const wStart = duration > 0 ? startTime + (wi / words.length) * duration : startTime;
+          const wEnd = duration > 0 ? startTime + ((wi + 1) / words.length) * duration : endTime;
+          syllables.push({
+            Text: w,
+            StartTime: wStart,
+            EndTime: wEnd,
+            IsPartOfWord: wIsPartOfWord,
+          });
+        });
+      } else {
+        syllables.push({
+          Text: rawText,
+          StartTime: startTime,
+          EndTime: endTime,
+          IsPartOfWord: isPartOfWord,
+        });
       }
     }
     return syllables;
@@ -145,7 +171,8 @@ export function parseTtmlXmlToJson(xml) {
     const pTag = (pm[0].match(/^<p\b[^>]*>/) || [pm[0]])[0];
     const pBegin = (pTag.match(/begin="([^"]+)"/) || [])[1];
     const pEnd = (pTag.match(/end="([^"]+)"/) || [])[1];
-    const pIsBackground = /(?:ttm:)?role="(?:Background|x-bg)"|agent="v(?:[2-9]|1[0-9])"/i.test(pTag);
+    const pIsBackground = /(?:ttm:)?role="(?:Background|x-bg)"/i.test(pTag);
+    const pIsOpposite = /(?:ttm:)?agent="v2"|role="x-opposite"|agent="v[2-9]"/i.test(pTag);
 
     const { leadContent, groups } = extractBackgroundGroups(pContent);
 
@@ -158,7 +185,15 @@ export function parseTtmlXmlToJson(xml) {
 
     // Each x-bg group becomes its own stacked sub-line under the lead.
     let background = null;
-    const bgSyllables = groups.flatMap((g) => parseSyllables(g.content));
+    const rawBgSyllables = groups.flatMap((g) => parseSyllables(g.content));
+    const bgSyllables = rawBgSyllables.map((s) => {
+      if (s && typeof s.Text === "string") {
+        const cleanText = s.Text.replace(/^\(/, "").replace(/\)$/, "").trim();
+        return { ...s, Text: cleanText };
+      }
+      return s;
+    }).filter((s) => s && s.Text && s.Text.length > 0);
+
     if (bgSyllables.length > 0) {
       background = {
         StartTime: bgSyllables[0].StartTime,
@@ -169,14 +204,32 @@ export function parseTtmlXmlToJson(xml) {
     }
 
     if (lead.Syllables.length > 0) {
-      lines.push({ Lead: lead, Background: background, OppositeAligned: false });
+      lines.push({ Lead: lead, Background: background, OppositeAligned: pIsOpposite });
     } else if (background) {
       // Background-only paragraph — promote it so the line still renders.
-      lines.push({ Lead: background, OppositeAligned: false });
+      lines.push({ Lead: background, OppositeAligned: pIsOpposite });
     } else {
       const plainText = cleanText(pContent);
       if (plainText) {
-        lines.push({ Lead: { StartTime: lead.StartTime, EndTime: lead.EndTime, Syllables: [{ Text: plainText, StartTime: lead.StartTime, EndTime: lead.EndTime, IsPartOfWord: false }] }, OppositeAligned: false });
+        // A line-level <p> has no <span> children, so upstream's per-word
+        // animation has nothing to attach to and the line renders as one smeared
+        // gradient. Split it so every word gets an element. These timings are
+        // interpolated — a fallback for tracks with no real alignment.
+        const splitWords = opts.forceWordLevel !== false; // default true
+        let syllables = [];
+        if (splitWords) {
+          syllables = splitLineToSyllables(plainText, lead.StartTime, lead.EndTime);
+        }
+        lines.push({
+          Lead: {
+            StartTime: lead.StartTime,
+            EndTime: lead.EndTime,
+            Syllables: syllables.length
+              ? syllables
+              : [{ Text: plainText, StartTime: lead.StartTime, EndTime: lead.EndTime, IsPartOfWord: false }],
+          },
+          OppositeAligned: false,
+        });
       }
     }
   }

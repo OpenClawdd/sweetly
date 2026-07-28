@@ -124,6 +124,9 @@ async function start(): Promise<void> {
     }
   }).Start();
 
+  const { startPunchLayer } = await import("./lyrics/punchLayer.ts");
+  startPunchLayer();
+
   let lastKey: string | null = null;
 
   async function loadLyricsForCurrentTrack(): Promise<void> {
@@ -156,6 +159,9 @@ async function start(): Promise<void> {
   }
 
   (globalThis as any).__sweetlyReloadLyrics = loadLyricsForCurrentTrack;
+  window.addEventListener("lyrics-config-changed", () => {
+    loadLyricsForCurrentTrack();
+  });
 
   onMusicStateChange((state) => {
     UpdateNowBar();

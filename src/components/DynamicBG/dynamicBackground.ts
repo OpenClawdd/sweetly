@@ -106,11 +106,26 @@ async function rasterizeLocalCover(coverUrl: string): Promise<Blob | null> {
  * URL; local-file covers are rasterized to a Blob (see {@link rasterizeLocalCover}).
  */
 async function resolveKawarpSource(coverUrl: string, isLocalCover: boolean): Promise<KawarpSource | null> {
-  if (!isLocalCover) {
-    return { kind: "url", value: coverUrl };
+  if (isLocalCover) {
+    const blob = await rasterizeLocalCover(coverUrl);
+    return blob ? { kind: "blob", value: blob } : null;
   }
-  const blob = await rasterizeLocalCover(coverUrl);
-  return blob ? { kind: "blob", value: blob } : null;
+
+  if (!coverUrl) return null;
+
+  if (coverUrl.startsWith("http://") || coverUrl.startsWith("https://")) {
+    try {
+      const res = await fetch(coverUrl);
+      if (res.ok) {
+        const blob = await res.blob();
+        return { kind: "blob", value: blob };
+      }
+    } catch (err) {
+      dynamicBgLogger.warn("Failed to fetch cover blob for Kawarp, falling back to direct URL", err);
+    }
+  }
+
+  return { kind: "url", value: coverUrl };
 }
 
 /** Load a previously-resolved source into a Kawarp instance. */

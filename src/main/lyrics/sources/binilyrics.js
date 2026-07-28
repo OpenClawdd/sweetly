@@ -45,13 +45,24 @@ export async function fetchBiniLyrics(name, artist) {
         const text = rawText.trim();
         const sBegin = (fullTag.match(/begin="([^"]+)"/) || [])[1];
         const sEnd = (fullTag.match(/end="([^"]+)"/) || [])[1];
+        const isLast = si === spanMatches.length - 1;
+
+        let spaceBetween = false;
+        if (!isLast) {
+          const nextIndex = spanMatches[si + 1].index;
+          const between = pContent.slice(index + fullTag.length, nextIndex);
+          if (/\s/.test(between)) spaceBetween = true;
+        }
+
+        const isPartOfWord = !isLast && !hasTrailing && !spaceBetween;
+
         if (text) {
-          lead.Syllables.push({ Text: text, StartTime: parseTTMLTime(sBegin || "0"), EndTime: parseTTMLTime(sEnd || "0"), IsPartOfWord: !hasTrailing });
-          if (si < spanMatches.length - 1) {
-            const nextIndex = spanMatches[si + 1].index;
-            const between = pContent.slice(index + fullTag.length, nextIndex);
-            if (/\s/.test(between)) lead.Syllables[lead.Syllables.length - 1].IsPartOfWord = false;
-          }
+          lead.Syllables.push({
+            Text: text,
+            StartTime: parseTTMLTime(sBegin || "0"),
+            EndTime: parseTTMLTime(sEnd || "0"),
+            IsPartOfWord: isPartOfWord,
+          });
         }
       }
 

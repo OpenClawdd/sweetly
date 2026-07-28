@@ -695,7 +695,7 @@ function AppendViewControls(ReAppend: boolean = false) {
       try {
         Tooltips.Settings = Spicetify.Tippy(settingsButton, {
           ...Spicetify.TippyProps,
-          content: `Spicy Lyrics Settings`,
+          content: `Settings`,
         });
         settingsButton.addEventListener("click", () => {
           openSettingsPanel();
@@ -731,36 +731,45 @@ function AppendViewControls(ReAppend: boolean = false) {
 // --- Reactive setting subscriptions ---
 
 $simpleLyricsMode.listen((v) => {
-  if (!PageContainer) return;
-  PageContainer.classList.toggle("SimpleLyricsMode", v);
-  const uri = SpotifyPlayer.GetUri();
+  const container = PageContainer || document.querySelector("#SpicyLyricsPage");
+  if (!container) return;
+  container.classList.toggle("SimpleLyricsMode", v);
   $currentLyricsData.set("");
-  if (uri) fetchLyrics(uri).then(ApplyLyrics);
+  if ((globalThis as any).__sweetlyReloadLyrics) {
+    (globalThis as any).__sweetlyReloadLyrics();
+  }
 });
 
 $minimalLyricsMode.listen((v) => {
-  if (!PageContainer) return;
-  PageContainer.classList.toggle("MinimalLyricsMode", v);
-  const uri = SpotifyPlayer.GetUri();
+  const container = PageContainer || document.querySelector("#SpicyLyricsPage");
+  if (!container) return;
+  container.classList.toggle("MinimalLyricsMode", v);
   $currentLyricsData.set("");
-  if (uri) fetchLyrics(uri).then(ApplyLyrics);
+  if ((globalThis as any).__sweetlyReloadLyrics) {
+    (globalThis as any).__sweetlyReloadLyrics();
+  }
 });
 
 $skipSpicyFont.listen((v) => {
-  if (!PageContainer) return;
-  PageContainer.classList.toggle("UseSpicyFont", !v);
+  const container = PageContainer || document.querySelector("#SpicyLyricsPage");
+  if (container) {
+    container.classList.toggle("UseSpicyFont", !v);
+  }
+  document.body.classList.toggle("UseSpicyFont", !v);
 });
 
 $viewControlsPosition.listen((v) => {
-  if (!PageContainer) return;
-  PageContainer.classList.toggle("ViewControlsPosition_Top", v === "Top");
-  PageContainer.classList.toggle("ViewControlsPosition_Bottom", v === "Bottom");
+  const container = PageContainer || document.querySelector("#SpicyLyricsPage");
+  if (!container) return;
+  container.classList.toggle("ViewControlsPosition_Top", v === "Top");
+  container.classList.toggle("ViewControlsPosition_Bottom", v === "Bottom");
   AppendViewControls(true);
 });
 
 $ttmlMakerMode.listen((v) => {
-  if (!PageContainer) return;
+  const container = PageContainer || document.querySelector("#SpicyLyricsPage");
+  if (!container) return;
   AppendViewControls(true);
-})
+});
 
 export default PageView;

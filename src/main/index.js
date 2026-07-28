@@ -411,7 +411,7 @@ ipcMain.handle("hide-window", () => {
   return true;
 });
 
-ipcMain.handle("fetch-lyrics", async (_event, { name, artist, album }) => {
+ipcMain.handle("fetch-lyrics", async (_event, { name, artist, album, forceWordLevel }) => {
   console.log("[Sweetly-Main] IPC: fetch-lyrics name=", name, "artist=", artist, "album=", album);
   if (!name || name === "Unknown Track") {
     console.log("[Sweetly-Main] fetch-lyrics: rejected (bad name)");
@@ -424,7 +424,7 @@ ipcMain.handle("fetch-lyrics", async (_event, { name, artist, album }) => {
     position: lastMusicState?.track?.position,
     artworkUrl: lastMusicState?.track?.artworkUrl,
   };
-  const result = await fetchLyricsData(name, artist, album, playback);
+  const result = await fetchLyricsData(name, artist, album, playback, { forceWordLevel });
   console.log("[Sweetly-Main] fetch-lyrics: result=", result ? `data=${!!result.data} art=${!!result.artworkUrl}` : "null");
   return result;
 });

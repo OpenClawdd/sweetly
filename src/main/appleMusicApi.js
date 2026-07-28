@@ -271,7 +271,7 @@ async function fetchLyrics(trackId, mediaUserToken) {
   return null;
 }
 
-export async function findAppleMusicLyrics(name, artist, album) {
+export async function findAppleMusicLyrics(name, artist, album, opts = {}) {
   const mediaUserToken = getMediaUserToken();
   if (!mediaUserToken) {
     console.log("[AppleMusicAPI] No media-user-token configured");
@@ -282,7 +282,7 @@ export async function findAppleMusicLyrics(name, artist, album) {
   if (!track) return null;
 
   const rawTtml = await fetchLyrics(track.id, mediaUserToken);
-  const lyrics = rawTtml ? parseTtmlXmlToJson(rawTtml) : null;
+  const lyrics = rawTtml ? parseTtmlXmlToJson(rawTtml, opts) : null;
 
   return {
     lyrics,
