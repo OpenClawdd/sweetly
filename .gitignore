@@ -182,3 +182,9 @@ CHANGELOG.md
 # Python bytecode from scripts/
 __pycache__/
 *.pyc
+
+# local audio, never commit
+*.mp3
+*.m4a
+*.wav
+*.flac
