@@ -109,6 +109,11 @@ export function convertAlignedJsonToTTML(rawJson, artistName = "", offsetSeconds
     let leadSpans = "";
     let bgSpans = "";
 
+    // An interjection only counts as an ad-lib when it stands alone as its own
+    // line. Testing every token meant ordinary lyrics containing "pop", "yeah"
+    // or "gang" had that word pulled out of the lead and stacked underneath.
+    const isLoneInterjection = words.length === 1;
+
     for (const w of words) {
       const raw = String(w.word || "").trim();
       if (!raw) continue;
@@ -116,7 +121,7 @@ export function convertAlignedJsonToTTML(rawJson, artistName = "", offsetSeconds
       if (!clean) continue;
 
       const span = `<span begin="${shift(w.start, seg.start)}" end="${shift(w.end, seg.end)}">${escapeXml(clean)} </span>`;
-      if (raw.startsWith("(") || INTERJECTIONS.test(raw)) bgSpans += span;
+      if (raw.startsWith("(") || (isLoneInterjection && INTERJECTIONS.test(raw))) bgSpans += span;
       else leadSpans += span;
     }
 
@@ -148,7 +153,7 @@ ${paragraphs}  </div>
 </tt>`;
 }
 
-function runAligner({ audioPath, lyricsPath, outPath }) {
+function runAligner({ audioPath, lyricsPath, anchorsPath, outPath }) {
   return new Promise((resolve) => {
     const script = alignScript();
     if (!script) {
@@ -158,6 +163,7 @@ function runAligner({ audioPath, lyricsPath, outPath }) {
 
     const args = [script, "--audio", audioPath, "--out", outPath];
     if (lyricsPath) args.push("--lyrics", lyricsPath);
+    if (anchorsPath) args.push("--anchors", anchorsPath);
 
     const child = spawn(pythonBin(), args, { env: { ...process.env, PYTHONWARNINGS: "ignore" } });
     let stderr = "";
@@ -187,8 +193,10 @@ function runAligner({ audioPath, lyricsPath, outPath }) {
  * @param {number} opts.duration     track length in seconds
  * @param {number} opts.position     current playhead in seconds
  * @param {string} [opts.lyricsText] known-but-untimed lyrics, enables forced alignment
+ * @param {Array<{text: string, start: number, end: number}>} [opts.anchors]
+ *        line-level time windows from a synced source, enables anchored alignment
  */
-export async function triggerAutoAlignment({ name, artist, duration, position = 0, lyricsText = "" }) {
+export async function triggerAutoAlignment({ name, artist, duration, position = 0, lyricsText = "", anchors = [] }) {
   const key = customKey(name, artist);
   if (!key) return { started: false, reason: "no key" };
   if (activeJobs.has(key)) return { started: false, reason: "already running" };
@@ -237,10 +245,15 @@ export async function triggerAutoAlignment({ name, artist, duration, position = 
   const lyricsPath = lyricsText.trim() ? path.join(WORK_DIR, `${key}.txt`) : null;
   if (lyricsPath) fs.writeFileSync(lyricsPath, lyricsText, "utf8");
 
+  // Line windows from a synced source. Their presence switches the aligner to
+  // the anchored path, which cannot collapse.
+  const anchorsPath = anchors?.length ? path.join(WORK_DIR, `${key}.anchors.json`) : null;
+  if (anchorsPath) fs.writeFileSync(anchorsPath, JSON.stringify(anchors), "utf8");
+
   const seconds = Math.min(duration - position + 1, 600);
   console.log(
     `[Sweetly-Aligner] Capturing "${name}" from ${device.name} for ${Math.round(seconds)}s`,
-    lyricsPath ? "(forced alignment)" : "(ASR)",
+    anchorsPath ? "(anchored)" : lyricsPath ? "(forced alignment)" : "(ASR)",
   );
 
   // Fire-and-forget: this runs for the length of the song.
@@ -257,7 +270,7 @@ export async function triggerAutoAlignment({ name, artist, duration, position = 
       }
 
       emitStatus({ name, artist, phase: "aligning" });
-      const aligned = await runAligner({ audioPath, lyricsPath, outPath: outJson });
+      const aligned = await runAligner({ audioPath, lyricsPath, anchorsPath, outPath: outJson });
       if (!aligned.ok) {
         console.log("[Sweetly-Aligner] Alignment failed:", aligned.reason);
         emitStatus({ name, artist, phase: "failed", reason: aligned.reason });
