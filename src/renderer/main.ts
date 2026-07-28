@@ -22,6 +22,7 @@ import "../css/Loaders/LoaderContainer.css";
 import "../css/font-pack/font-pack.css";
 import "../css/settings-panel.css";
 import "tippy.js/dist/tippy.css";
+import "./styles/punch.css";
 
 import { installSpicetifyShim } from "./adapter/spicetifyShim.ts";
 import {
@@ -31,12 +32,26 @@ import {
 } from "./adapter/musicState.ts";
 import { setProgressProvider } from "./adapter/AppleMusicPlayer.ts";
 
+let lastPositionMs = 0;
+let lastUpdateTimestamp = Date.now();
+let lastStatus = "closed";
+
+onMusicStateChange((state) => {
+  if (state.track) {
+    lastPositionMs = state.track.position * 1000;
+    lastUpdateTimestamp = Date.now();
+  }
+  lastStatus = state.status;
+});
+
 // The shim's PlayerAPI._contextPlayer.getPositionState needs the raw player
 // position, but the shim must not import the adapter (it is installed before
 // upstream loads). A global hand-off keeps the dependency one-way.
+// Extrapolates position between 2s AppleScript polls so the lyric clock
+// flows at a smooth 60fps instead of stalling between updates.
 (globalThis as any).__sweetlyRawPositionMs = () => {
-  const track = getMusicState().track;
-  return track ? track.position * 1000 : 0;
+  if (lastStatus !== "playing") return lastPositionMs;
+  return lastPositionMs + (Date.now() - lastUpdateTimestamp);
 };
 (globalThis as any).__sweetlyIsPlaying = () => getMusicState().status === "playing";
 
@@ -86,6 +101,10 @@ async function start(): Promise<void> {
   if (!mount) throw new Error("#app mount point missing from index.html");
   await PageView.Open(mount);
 
+  // Enter Fullscreen Cinema View (Spicy's full-screen lyrics layout with artwork, scrubbar, and right-column lyrics)
+  const { default: Fullscreen } = await import("../components/Utils/Fullscreen.ts");
+  Fullscreen.Open(true);
+
   installViewControlBehaviour();
 
   // app.tsx:765-769, which our entry never reproduced. Without it
@@ -110,8 +129,8 @@ async function start(): Promise<void> {
   async function loadLyricsForCurrentTrack(): Promise<void> {
     const result = await fetchLyricsForCurrentTrack();
 
-    const background = document.querySelector<HTMLElement>(".spicy-dynamic-bg");
-    if (background) void ApplyDynamicBackground(background);
+    const contentBox = document.querySelector<HTMLElement>("#SpicyLyricsPage .ContentBox") || document.querySelector<HTMLElement>(".ContentBox") || document.body;
+    if (contentBox) void ApplyDynamicBackground(contentBox, "lpagebg");
 
     // Upstream's fetchLyrics.ts does this in presentLyrics() (line 38-48) —
     // publishing the type is not cosmetic bookkeeping, it is what makes the
@@ -133,8 +152,9 @@ async function start(): Promise<void> {
     $currentlyFetching.set(false);
 
     await ApplyLyrics(result as any);
-
   }
+
+  (globalThis as any).__sweetlyReloadLyrics = loadLyricsForCurrentTrack;
 
   onMusicStateChange((state) => {
     UpdateNowBar();

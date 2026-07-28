@@ -45,15 +45,14 @@ export async function fetchLyricsData(name, artist, album, playback = {}) {
 
   // 1. User-supplied / AI-aligned TTML in ~/.sweetly-custom
   const customData = await safe("custom", () => getCustomLyrics(name, artist, playback.duration));
-  if (customData) {
-    console.log("[Sweetly-Main] Using custom local lyrics for:", name);
-    const appleResult = await appleResultPromise;
-    return { data: customData, provider: "spicylyrics", artworkUrl: appleResult?.artworkUrl || null };
-  }
-
   const appleResult = await appleResultPromise;
   const appleLyrics = appleResult?.lyrics;
-  const appleArtwork = appleResult?.artworkUrl || null;
+  const appleArtwork = playback.artworkUrl || appleResult?.artworkUrl || null;
+
+  if (customData) {
+    console.log("[Sweetly-Main] Using custom local lyrics for:", name);
+    return { data: customData, provider: "spicylyrics", artworkUrl: appleArtwork };
+  }
 
   // 2. Apple Music, but only when it actually came back syllable-level
   if (appleLyrics?.Content) {

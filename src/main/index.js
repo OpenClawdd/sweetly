@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, screen, session } from "electron";
+import { app, BrowserWindow, globalShortcut, ipcMain, screen, session, Menu, Tray, nativeImage } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchAppleMusicState, pollAppleMusic, setPlayerPosition, togglePlayPause, skipToNext, skipToPrevious, toggleShuffle, cycleRepeat, toggleFavorite } from "./appleMusic.js";
@@ -15,6 +15,7 @@ console.log("[Sweetly-Main] PRELOAD_PATH:", PRELOAD_PATH);
 
 let mainWindow = null;
 let stopPoll = null;
+let tray = null;
 
 let isMaximized = false;
 let normalBounds = null;
@@ -22,6 +23,53 @@ let normalBounds = null;
 let lastSentStatus = null;
 let lastSentTrackKey = null;
 let lastMusicState = null;
+
+function updateTrayMenu(state) {
+  if (!tray) return;
+
+  const track = state?.track;
+  const trackTitle = track ? `${track.nameCleaned} — ${track.artistCleaned}` : "No Song Playing";
+
+  const contextMenu = Menu.buildFromTemplate([
+    { label: trackTitle, enabled: false },
+    { type: "separator" },
+    {
+      label: state?.status === "playing" ? "Pause" : "Play",
+      click: () => void togglePlayPause(),
+    },
+    { label: "Next Track", click: () => void skipToNext() },
+    { label: "Previous Track", click: () => void skipToPrevious() },
+    { type: "separator" },
+    {
+      label: "Toggle Lyrics Overlay",
+      click: () => {
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+        if (mainWindow.isVisible()) {
+          mainWindow.hide();
+        } else {
+          mainWindow.show();
+        }
+      },
+    },
+    { type: "separator" },
+    { label: "Quit Sweetly", click: () => app.quit() },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+  tray.setToolTip(`Sweetly: ${trackTitle}`);
+}
+
+function createTray() {
+  if (tray) return;
+  try {
+    const icon = nativeImage.createEmpty();
+    tray = new Tray(icon);
+    tray.setTitle("🎵");
+    updateTrayMenu(lastMusicState);
+  } catch (err) {
+    console.error("[Sweetly-Main] Failed to create Tray:", err);
+  }
+}
 
 function safeSend(channel, data) {
   try {
@@ -67,6 +115,8 @@ function onMusicState(state) {
   if (pollCount <= 3 || pollCount % 20 === 0) {
     console.log(`[Sweetly-Main] Poll #${pollCount}: status=${status} track="${track?.name || ""}" pos=${track?.position} skip=${wouldSkip}`);
   }
+
+  updateTrayMenu(state);
 
   if (wouldSkip) {
     return;
@@ -117,7 +167,9 @@ function createWindow() {
     height: 380,
     frame: false,
     transparent: true,
-    hasShadow: false,
+    hasShadow: true,
+    vibrancy: "fullscreen-ui",
+    visualEffectState: "active",
     backgroundColor: "#00000000",
     webPreferences: {
       preload: PRELOAD_PATH,
@@ -126,7 +178,69 @@ function createWindow() {
     },
   });
 
+  // Native macOS Application Menu
+  if (process.platform === 'darwin') {
+    const template = [
+      {
+        label: "Sweetly",
+        submenu: [
+          { role: 'about', label: 'About Sweetly' },
+          { type: 'separator' },
+          { role: 'services' },
+          { type: 'separator' },
+          { role: 'hide', label: 'Hide Sweetly' },
+          { role: 'hideOthers' },
+          { role: 'unhide' },
+          { type: 'separator' },
+          { role: 'quit', label: 'Quit Sweetly' }
+        ]
+      },
+      {
+        label: 'Edit',
+        submenu: [
+          { role: 'undo' },
+          { role: 'redo' },
+          { type: 'separator' },
+          { role: 'cut' },
+          { role: 'copy' },
+          { role: 'paste' },
+          { role: 'pasteAndMatchStyle' },
+          { role: 'delete' },
+          { role: 'selectAll' }
+        ]
+      },
+      {
+        label: 'View',
+        submenu: [
+          { role: 'reload' },
+          { role: 'forceReload' },
+          { role: 'toggleDevTools' },
+          { type: 'separator' },
+          { role: 'resetZoom' },
+          { role: 'zoomIn' },
+          { role: 'zoomOut' },
+          { type: 'separator' },
+          { role: 'togglefullscreen' }
+        ]
+      },
+      {
+        label: 'Window',
+        submenu: [
+          { role: 'minimize' },
+          { role: 'zoom' },
+          { type: 'separator' },
+          { role: 'front' },
+          { type: 'separator' },
+          { role: 'window' }
+        ]
+      }
+    ];
+    Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  }
+
   console.log("[Sweetly-Main] BrowserWindow created, id:", mainWindow.id);
+
+  createTray();
 
   mainWindow.setAlwaysOnTop(true, "screen-saver");
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnAllWorkspaces: true });
@@ -308,6 +422,7 @@ ipcMain.handle("fetch-lyrics", async (_event, { name, artist, album }) => {
   const playback = {
     duration: lastMusicState?.track?.duration,
     position: lastMusicState?.track?.position,
+    artworkUrl: lastMusicState?.track?.artworkUrl,
   };
   const result = await fetchLyricsData(name, artist, album, playback);
   console.log("[Sweetly-Main] fetch-lyrics: result=", result ? `data=${!!result.data} art=${!!result.artworkUrl}` : "null");

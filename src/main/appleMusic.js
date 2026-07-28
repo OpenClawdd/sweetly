@@ -7,7 +7,7 @@ import path from "node:path";
 const execFileAsync = promisify(execFile);
 
 const SCRIPT = `tell application "System Events"
-  if not (exists process "Music") then return "closed||||||"
+  if not (exists process "Music") then return "closed||||||||"
 end tell
 
 tell application "Music"
@@ -22,6 +22,7 @@ tell application "Music"
       set tShuffle to "false"
       set tRepeat to "off"
       set tFav to "false"
+      set tHasArt to "false"
       try
         set tName to name of current track
         set tArtist to artist of current track
@@ -38,16 +39,58 @@ tell application "Music"
       try
         set tFav to (favorited of current track) as string
       end try
-      return pState & "|||" & tName & "|||" & tArtist & "|||" & tAlbum & "|||" & tPos & "|||" & tDur & "|||" & tShuffle & "|||" & tRepeat & "|||" & tFav
+      try
+        if (count of artworks of current track) > 0 then set tHasArt to "true"
+      end try
+      return pState & "|||" & tName & "|||" & tArtist & "|||" & tAlbum & "|||" & tPos & "|||" & tDur & "|||" & tShuffle & "|||" & tRepeat & "|||" & tFav & "|||" & tHasArt
     else
-      return "stopped||||||"
+      return "stopped||||||||"
     end if
   on error
-    return "closed||||||"
+    return "closed||||||||"
   end try
 end tell`;
 
 const SCRIPT_PATH = path.join(tmpdir(), "sweetly-music.scpt");
+const ARTWORK_PATH = path.join(tmpdir(), "sweetly-current-artwork.png");
+
+let lastExportedKey = null;
+let cachedArtworkUrl = null;
+
+export async function exportCurrentArtwork(trackKey) {
+  if (!trackKey) return null;
+  if (trackKey === lastExportedKey && cachedArtworkUrl) {
+    return cachedArtworkUrl;
+  }
+
+  const exportScript = `tell application "Music"
+    try
+      if (count of artworks of current track) > 0 then
+        set artData to raw data of artwork 1 of current track
+        set filePath to "${ARTWORK_PATH}"
+        set fileRef to open for access file filePath with write permission
+        set eof fileRef to 0
+        write artData to fileRef
+        close access fileRef
+        return filePath
+      end if
+    end try
+    return ""
+  end tell`;
+
+  try {
+    const { stdout } = await execFileAsync("osascript", ["-e", exportScript], { encoding: "utf8", timeout: 3000 });
+    const outPath = stdout.trim();
+    if (outPath) {
+      lastExportedKey = trackKey;
+      cachedArtworkUrl = `file://${ARTWORK_PATH}?t=${Date.now()}`;
+      return cachedArtworkUrl;
+    }
+  } catch (e) {
+    console.error("[AppleScript] exportCurrentArtwork failed:", e.message);
+  }
+  return null;
+}
 
 export function cleanTrackTitle(title) {
   if (!title) return "";
@@ -118,17 +161,29 @@ export async function fetchAppleMusicState() {
 
     const rawName = parts[1] || "Unknown Track";
     const rawArtist = parts[2] || "Unknown Artist";
+    const rawAlbum = parts[3] || "";
+    const hasArt = parts[9] === "true";
+
+    const nameCleaned = cleanTrackTitle(rawName);
+    const artistCleaned = cleanArtistName(rawArtist);
+    const trackKey = `${nameCleaned}|||${artistCleaned}|||${rawAlbum}`;
+
+    let artworkUrl = null;
+    if (hasArt) {
+      artworkUrl = await exportCurrentArtwork(trackKey);
+    }
 
     return {
       status,
       track: {
         name: rawName,
-        nameCleaned: cleanTrackTitle(rawName),
+        nameCleaned,
         artist: rawArtist,
-        artistCleaned: cleanArtistName(rawArtist),
-        album: parts[3] || "",
+        artistCleaned,
+        album: rawAlbum,
         position: parseFloat(parts[4]) || 0,
         duration: parseFloat(parts[5]) || 0,
+        artworkUrl,
       },
       shuffle: parts[6] === "true",
       repeat: parts[7] || "off",

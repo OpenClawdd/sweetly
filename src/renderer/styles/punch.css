@@ -1,0 +1,78 @@
+/*
+ * Sweetly's punch layer and layout overrides.
+ * Loaded after upstream so it wins on equal specificity.
+ */
+
+#SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .line,
+#SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .line .word,
+#SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .line .letter {
+  --gradient-alpha: 1;
+  --gradient-alpha-end: 0.22;
+}
+
+/* A scrim so text stops competing with the Kawarp background. */
+#SpicyLyricsPage.SpicyRenderer .LyricsContainer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.28) 22%, rgba(0,0,0,0.38) 100%);
+  z-index: 0;
+}
+
+#SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent {
+  position: relative;
+  z-index: 1;
+}
+
+/* Bloom on the active line only, so contrast does the work. */
+#SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .line.Active,
+#SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .line.Active .word {
+  text-shadow:
+    0 0 calc(var(--punch-bloom, 1) * 18px) rgba(255, 255, 255, 0.34),
+    0 0 calc(var(--punch-bloom, 1) * 44px) rgba(255, 255, 255, 0.16);
+}
+
+/* Per-line spring animation properties */
+#SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .line {
+  transform-origin: left center;
+  scale: var(--punch-scale, 1);
+  transition: scale 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Duet / Opposite-aligned lines layout fix:
+   1. Set container-type: inline-size on .LyricsContainer so container queries resolve
+      against the lyrics column width rather than the full window width.
+   2. Enforce border-box sizing and max-width 100% so opposite-aligned lines never
+      overflow or clip off the right edge of the screen.
+*/
+#SpicyLyricsPage .LyricsContainer {
+  container-type: inline-size;
+  box-sizing: border-box;
+}
+
+#SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .line {
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+}
+
+#SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .line.OppositeAligned {
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+  padding-left: clamp(1rem, 8cqw, 12cqw) !important;
+  padding-right: clamp(1.2rem, 3cqw, 2.5rem) !important;
+  transform-origin: right center !important;
+}
+
+#SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .line:not(.OppositeAligned) {
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+  padding-right: clamp(1rem, 8cqw, 12cqw) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .line {
+    scale: 1;
+    transition: none;
+  }
+}

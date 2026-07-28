@@ -1,7 +1,7 @@
 import Store from "electron-store";
 import { parseTtmlXmlToJson } from "./lyrics/ttmlXml.js";
 
-const store = new Store({ name: "sweetly-config" });
+const store = new Store({ name: "sweetly-config", projectName: "sweetly" });
 
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
@@ -73,8 +73,10 @@ function scoreSong(song, name, artist, album) {
     else if (sArtist.includes(qArtist) || qArtist.includes(sArtist)) score += 25;
     else score -= 20;
   }
-  if (sAlbum && qAlbum && (sAlbum === qAlbum || sAlbum.includes(qAlbum) || qAlbum.includes(sAlbum))) {
-    score += 20;
+  if (sAlbum && qAlbum) {
+    if (sAlbum === qAlbum) score += 80;
+    else if (sAlbum.includes(qAlbum) || qAlbum.includes(sAlbum)) score += 40;
+    else score -= 30;
   }
 
   // A remix/DJ-mix cut has different timings than the album version.
