@@ -15,6 +15,8 @@ import path from "node:path";
 import os from "node:os";
 import { customKey } from "./customKey.js";
 import { findLoopbackDevice, captureSystemAudio, SETUP_HINT } from "./audioCapture.js";
+import { parseTtmlXmlToJson } from "./ttmlXml.js";
+import { lyricsCoverTrack } from "./utils.js";
 
 const CUSTOM_DIR = path.join(os.homedir(), ".sweetly-custom");
 const WORK_DIR = path.join(CUSTOM_DIR, ".work");
@@ -196,6 +198,30 @@ function runAligner({ audioPath, lyricsPath, anchorsPath, outPath }) {
  * @param {Array<{text: string, start: number, end: number}>} [opts.anchors]
  *        line-level time windows from a synced source, enables anchored alignment
  */
+/**
+ * Is the .ttml already on disk worth keeping?
+ *
+ * Existence alone is not the question. A collapsed alignment — every line
+ * stamped into the opening seconds — is a well-formed file that renders
+ * perfectly and is useless, and treating it as "done" made it permanent:
+ * the aligner skipped the track, so replaying it could never produce a
+ * better one. Judge the file by the same coverage guard the serving path
+ * uses, so a bad result is simply redone on the next play.
+ *
+ * Anything unreadable counts as unusable — regenerating costs a few minutes,
+ * whereas trusting a corrupt file costs the track.
+ */
+export function existingAlignmentIsUsable(ttmlPath, duration) {
+  if (!fs.existsSync(ttmlPath)) return false;
+  try {
+    const parsed = parseTtmlXmlToJson(fs.readFileSync(ttmlPath, "utf8"));
+    if (!parsed?.Content?.length) return false;
+    return lyricsCoverTrack(parsed, duration);
+  } catch {
+    return false;
+  }
+}
+
 export async function triggerAutoAlignment({ name, artist, duration, position = 0, lyricsText = "", anchors = [] }) {
   const key = customKey(name, artist);
   if (!key) return { started: false, reason: "no key" };
@@ -203,7 +229,10 @@ export async function triggerAutoAlignment({ name, artist, duration, position = 
 
   fs.mkdirSync(WORK_DIR, { recursive: true });
   const ttmlPath = path.join(CUSTOM_DIR, `${key}.ttml`);
-  if (fs.existsSync(ttmlPath)) return { started: false, reason: "already aligned" };
+  if (existingAlignmentIsUsable(ttmlPath, duration)) return { started: false, reason: "already aligned" };
+  if (fs.existsSync(ttmlPath)) {
+    console.log("[Sweetly-Aligner] Existing alignment is collapsed or unreadable, regenerating:", ttmlPath);
+  }
 
   // Pre-aligned JSON dropped in by hand or by convert-whisperx.
   const jsonPath = path.join(CUSTOM_DIR, `${key}.json`);
