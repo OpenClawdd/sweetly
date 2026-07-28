@@ -140,14 +140,15 @@ async function start(): Promise<void> {
     // background-image (the only thing that shows glyphs, since .line/.word/
     // .letter set -webkit-text-fill-color: transparent) on .line.Active.
     // ScrollToActiveLine.ts:113 also early-returns on "None".
+    const container = document.querySelector<HTMLElement>(".ContentBox");
+    container?.classList.remove("LyricsHidden");
+    document.querySelector(".ContentBox .LyricsContainer")?.classList.remove("Hidden");
+
     const [content] = result;
     if (typeof content === "string") {
       $currentLyricsType.set("None");
     } else {
       $currentLyricsType.set(content.Type);
-      const container = document.querySelector<HTMLElement>(".ContentBox");
-      container?.classList.remove("LyricsHidden");
-      document.querySelector(".ContentBox .LyricsContainer")?.classList.remove("Hidden");
     }
     $currentlyFetching.set(false);
 

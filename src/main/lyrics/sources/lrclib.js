@@ -1,4 +1,46 @@
-import { SEARCH_UA } from "../utils.js";
+import { SEARCH_UA, splitLineToSyllables } from "../utils.js";
+
+function normalize(str) {
+  return String(str || "")
+    .toLowerCase()
+    .replace(/\s*[([]\s*(feat|ft|with)\.?\s[^)\]]*[)\]]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function matchTrack(results, name, artist) {
+  const normName = normalize(name);
+  const normArtist = normalize(artist);
+  const primaryArtist = normArtist.split(" ")[0];
+
+  const candidates = (results || []).filter((r) => r.syncedLyrics || r.plainLyrics);
+  let bestMatch = null;
+  let bestScore = -Infinity;
+
+  for (const r of candidates) {
+    const rName = normalize(r.trackName);
+    const rArtist = normalize(r.artistName);
+
+    let score = 0;
+    if (rName === normName) score += 100;
+    else if (rName.startsWith(normName) || normName.startsWith(rName)) score += 60;
+    else if (rName.includes(normName) || normName.includes(rName)) score += 30;
+    else score -= 80;
+
+    if (rArtist === normArtist) score += 60;
+    else if (rArtist.includes(normArtist) || normArtist.includes(rArtist) || (primaryArtist && rArtist.includes(primaryArtist))) score += 30;
+    else score -= 40;
+
+    if (r.syncedLyrics) score += 20;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = r;
+    }
+  }
+
+  return bestScore >= 40 ? bestMatch : null;
+}
 
 export async function fetchLRCLib(name, artist) {
   try {
@@ -7,11 +49,11 @@ export async function fetchLRCLib(name, artist) {
     if (!res.ok) return null;
     const results = await res.json();
     if (!results?.length) return null;
-    const match = results.find((r) => r.syncedLyrics) || results[0];
+    const match = matchTrack(results, name, artist);
     if (!match?.syncedLyrics) return null;
     console.log("[Sweetly-Main] LRCLIB:", match.trackName, match.artistName);
 
-    const lines = [];
+    const parsedLines = [];
     for (const raw of match.syncedLyrics.split("\n")) {
       const m = raw.match(/\[(\d{1,3}):(\d{2})(?:[.:](\d{2,3}))?\](.*)/);
       if (!m) continue;
@@ -21,9 +63,20 @@ export async function fetchLRCLib(name, artist) {
       const time = mins * 60 + secs + ms;
       const text = (m[4] || "").trim();
       if (!text) continue;
-      lines.push({ Lead: { StartTime: time, EndTime: time + 3, Syllables: [{ Text: text, StartTime: time, EndTime: time + 3, IsPartOfWord: false }] }, OppositeAligned: false });
+      parsedLines.push({ time, text });
     }
-    return lines.length > 0 ? { Content: lines, Type: "Line" } : null;
+
+    const lines = parsedLines.map((line, idx) => {
+      const nextTime = parsedLines[idx + 1]?.time ?? (line.time + 3);
+      const endTime = Math.max(line.time + 1, nextTime);
+      const syllables = splitLineToSyllables(line.text, line.time, endTime);
+      return {
+        Lead: { StartTime: line.time, EndTime: endTime, Syllables: syllables },
+        OppositeAligned: false,
+      };
+    });
+
+    return lines.length > 0 ? { Content: lines, Type: "Syllable" } : null;
   } catch (e) {
     console.log("[Sweetly-Main] LRCLIB error:", e.message);
     return null;

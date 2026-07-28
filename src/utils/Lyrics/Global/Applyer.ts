@@ -40,6 +40,8 @@ export const cleanupApplyLyricsAbortController = () => {
  */
 export default async function ApplyLyrics(lyricsContent: [object | string, number] | null): Promise<void> {
   if (!PageContainer) return;
+  PageContainer.querySelector<HTMLElement>(".ContentBox .LyricsContainer")?.classList.remove("Hidden");
+  PageContainer.querySelector<HTMLElement>(".ContentBox")?.classList.remove("LyricsHidden");
   setBlurringLastLine(null);
   if (!lyricsContent) return;
 

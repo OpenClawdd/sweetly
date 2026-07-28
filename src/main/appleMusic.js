@@ -56,40 +56,48 @@ const ARTWORK_PATH = path.join(tmpdir(), "sweetly-current-artwork.png");
 
 let lastExportedKey = null;
 let cachedArtworkUrl = null;
+let exportPromise = null;
 
 export async function exportCurrentArtwork(trackKey) {
   if (!trackKey) return null;
   if (trackKey === lastExportedKey && cachedArtworkUrl) {
     return cachedArtworkUrl;
   }
-
-  const exportScript = `tell application "Music"
-    try
-      if (count of artworks of current track) > 0 then
-        set artData to raw data of artwork 1 of current track
-        set filePath to "${ARTWORK_PATH}"
-        set fileRef to open for access file filePath with write permission
-        set eof fileRef to 0
-        write artData to fileRef
-        close access fileRef
-        return filePath
-      end if
-    end try
-    return ""
-  end tell`;
-
-  try {
-    const { stdout } = await execFileAsync("osascript", ["-e", exportScript], { encoding: "utf8", timeout: 3000 });
-    const outPath = stdout.trim();
-    if (outPath) {
-      lastExportedKey = trackKey;
-      cachedArtworkUrl = `file://${ARTWORK_PATH}?t=${Date.now()}`;
-      return cachedArtworkUrl;
-    }
-  } catch (e) {
-    console.error("[AppleScript] exportCurrentArtwork failed:", e.message);
+  if (exportPromise && trackKey === lastExportedKey) {
+    return exportPromise;
   }
-  return null;
+
+  lastExportedKey = trackKey;
+  exportPromise = (async () => {
+    const exportScript = `tell application "Music"
+      try
+        if (count of artworks of current track) > 0 then
+          set artData to raw data of artwork 1 of current track
+          set filePath to "${ARTWORK_PATH}"
+          set fileRef to open for access file filePath with write permission
+          set eof fileRef to 0
+          write artData to fileRef
+          close access fileRef
+          return filePath
+        end if
+      end try
+      return ""
+    end tell`;
+
+    try {
+      const { stdout } = await execFileAsync("osascript", ["-e", exportScript], { encoding: "utf8", timeout: 3000 });
+      const outPath = stdout.trim();
+      if (outPath) {
+        cachedArtworkUrl = `file://${ARTWORK_PATH}?t=${Date.now()}`;
+        return cachedArtworkUrl;
+      }
+    } catch (e) {
+      console.error("[AppleScript] exportCurrentArtwork failed:", e.message);
+    }
+    return null;
+  })();
+
+  return exportPromise;
 }
 
 export function cleanTrackTitle(title) {

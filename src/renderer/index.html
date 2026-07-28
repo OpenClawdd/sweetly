@@ -35,6 +35,26 @@
          at zero size: applied, no errors, invisible. Establish the context here. */
       #app {
         container-type: size;
+        -webkit-app-region: drag;
+        border-radius: 12px;
+      }
+      /* Ensure scrollable/interactive areas and buttons remain clickable */
+      button, a, input, select, textarea,
+      [role="button"],
+      .PlaybackControl,
+      .PlaybackControls,
+      .SliderBar,
+      .Timeline,
+      .ViewControl,
+      .NowBar,
+      .Header,
+      .MediaBox,
+      .LyricsContent,
+      .Tippy-Container,
+      .SettingsPanel,
+      #SpicyLyricsPage button,
+      #SpicyLyricsPage .ViewControls {
+        -webkit-app-region: no-drag !important;
       }
       /* Spicy's lyric styles inherit currentColor. Inside Spotify the white
          comes from Spotify's own body colour; standalone, the default is black,
