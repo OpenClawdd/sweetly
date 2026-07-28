@@ -30,6 +30,10 @@ import sys
 
 WORD_RE = re.compile(r"[^\W_]+(?:'[^\W_]+)*", re.UNICODE)
 
+# A fully-masked word from a censored source. It carries no sound to align, but
+# it must keep its slot so the line does not silently lose a word.
+MASK_RE = re.compile(r"^\*{2,}$")
+
 
 def norm(token: str) -> str:
     return re.sub(r"[^a-z0-9]", "", token.lower())
@@ -42,7 +46,7 @@ def lyric_lines(text: str):
         raw = raw.strip()
         if not raw or re.fullmatch(r"[\[(].*[\])]", raw):
             continue
-        tokens = [t for t in raw.split() if WORD_RE.search(t)]
+        tokens = [t for t in raw.split() if WORD_RE.search(t) or MASK_RE.match(t)]
         if tokens:
             lines.append(tokens)
     return lines
@@ -62,6 +66,14 @@ def regroup_spans_into_lines(spans, lines):
     for tokens in lines:
         words = []
         for tok in tokens:
+            if MASK_RE.match(tok):
+                # Nothing to align against. Pin it where the previous word
+                # ended so the line keeps its shape; sanitize() gives it a
+                # minimum duration afterwards.
+                at = words[-1]["end"] if words else (spans[si]["start"] if si < len(spans) else 0.0)
+                words.append({"word": tok, "start": at, "end": at})
+                continue
+
             key = norm(tok)
             if not key:
                 continue
@@ -145,6 +157,182 @@ WINDOW_SECONDS = 26.0
 TAIL_MARGIN = 2.5
 SAMPLE_RATE = 16000
 
+# Nobody delivers words faster than this. A window that claims to has collapsed:
+# handed more text than its clip contains, the encoder stamps every token into a
+# sliver at the head of the window instead of refusing the surplus.
+MAX_WORDS_PER_SEC = 12.0
+# Too few words to judge a rate from — a legitimately sparse window looks fast.
+MIN_COLLAPSE_SAMPLE = 5
+# Over-supply is what makes the encoder cram, so a collapsed window is retried
+# with progressively less text before its audio is written off.
+SUPPLY_START = 1.6
+SUPPLY_BACKOFF = 0.5
+SUPPLY_FLOOR = 0.5
+
+
+def _accepted_span(accepted):
+    return accepted[-1]["end"] - accepted[0]["start"]
+
+
+def collapsed(accepted):
+    """True when a window's words claim a humanly impossible delivery rate."""
+    if len(accepted) < MIN_COLLAPSE_SAMPLE:
+        return False
+    span = _accepted_span(accepted)
+    if span <= 0:
+        return True
+    return len(accepted) / span > MAX_WORDS_PER_SEC
+
+
+def walk_windows(tokens, audio_end, align_window):
+    """Walk the track in windows, consuming lyric tokens only as audio is covered.
+
+    `align_window(cursor, win_end, chunk)` returns an iterable of
+    `(text, start, end)` with times relative to the window start.
+
+    The invariant this enforces: **the token pointer may never outrun the audio
+    cursor.** Consuming tokens at the per-window estimate while the cursor
+    advanced by a 0.5s floor is what stamped whole songs into their first few
+    seconds — 537 words inside 3.7s of a 162s track. A window whose output is
+    physically impossible is retried with less text, then skipped; its tokens
+    are never spent.
+
+    Kept free of torch/whisperx so the contract stays testable.
+    """
+    spans = []
+    cursor = 0.0
+    token_i = 0
+    stalls = 0
+    supply = SUPPLY_START
+
+    while token_i < len(tokens) and cursor < audio_end - 0.2:
+        win_end = min(cursor + WINDOW_SECONDS, audio_end)
+        final_window = win_end >= audio_end - 0.05
+
+        # Give this window a proportional share of what's left, plus slack.
+        remaining_time = max(0.1, audio_end - cursor)
+        share = (win_end - cursor) / remaining_time
+        est = int(len(tokens[token_i:]) * share * supply) + 8
+        chunk = tokens[token_i:token_i + est]
+        if not chunk:
+            break
+
+        cutoff = (win_end - cursor) if final_window else (win_end - cursor - TAIL_MARGIN)
+        accepted = []
+        for text, start, end in align_window(cursor, win_end, chunk):
+            if not norm(text):
+                continue
+            if not final_window and start >= cutoff:
+                break
+            accepted.append({"word": text, "start": cursor + start, "end": cursor + end})
+
+        if not accepted:
+            # Nothing usable here — step forward rather than spin.
+            stalls += 1
+            supply = SUPPLY_START
+            cursor = win_end if stalls > 1 else cursor + WINDOW_SECONDS / 2
+            if stalls > 3:
+                print("[align] too many empty windows, stopping", file=sys.stderr)
+                break
+            continue
+
+        if not final_window and collapsed(accepted):
+            if supply > SUPPLY_FLOOR:
+                supply *= SUPPLY_BACKOFF
+                print(
+                    f"[align] window {cursor:.0f}-{win_end:.0f}s collapsed "
+                    f"({len(accepted)} words in {_accepted_span(accepted):.2f}s), "
+                    f"retrying at {supply:.2f}x tokens",
+                    file=sys.stderr,
+                )
+                continue  # same cursor, same tokens, less text
+            # Even a minimal supply collapses. Give up on this audio rather than
+            # spend the rest of the lyric inside it.
+            stalls += 1
+            supply = SUPPLY_START
+            print(
+                f"[align] window {cursor:.0f}-{win_end:.0f}s still collapsing, skipping",
+                file=sys.stderr,
+            )
+            cursor = max(win_end - TAIL_MARGIN, cursor + WINDOW_SECONDS / 2)
+            if stalls > 3:
+                print("[align] too many collapsed windows, stopping", file=sys.stderr)
+                break
+            continue
+
+        stalls = 0
+        supply = SUPPLY_START
+        spans.extend(accepted)
+        token_i += len(accepted)
+        # Resume where the accepted audio ended so nothing is skipped.
+        cursor = max(accepted[-1]["end"], cursor + 0.5)
+
+    return spans
+
+
+# A synced source's timings come from a different master than the local file, so
+# give each line room on both sides rather than trusting them to the millisecond.
+ANCHOR_PAD = 0.6
+# Below this a window is too short to align anything meaningful in.
+MIN_ANCHOR_WINDOW = 0.15
+
+
+def align_anchored(anchors, audio_end, align_line):
+    """Align each lyric line inside its own known time window.
+
+    `anchors` is [{"text": str, "start": float, "end": float}] — line-level
+    timings from a synced source such as LRCLIB. `align_line(lo, hi, tokens)`
+    returns (text, start, end) triples with times relative to `lo`.
+
+    This is structurally immune to the collapse that windowing suffers: a line's
+    words cannot leave that line's slice of audio, so the token stream can never
+    outrun the audio cursor. It also keeps every clip far below the encoder's
+    ~30s ceiling without any windowing machinery at all.
+
+    A line that aligns to nothing is skipped rather than invented.
+    """
+    segments = []
+
+    for anchor in anchors or []:
+        tokens = [
+            t for t in str(anchor.get("text", "")).split()
+            if WORD_RE.search(t) or MASK_RE.match(t)
+        ]
+        if not tokens:
+            continue
+
+        try:
+            start = float(anchor["start"])
+            end = float(anchor["end"])
+            limit = float(audio_end)
+        except (KeyError, TypeError, ValueError):
+            continue
+        # Judge the window before padding: padding alone would make even a
+        # zero-width anchor look alignable.
+        if end - start < MIN_ANCHOR_WINDOW:
+            continue
+
+        lo = max(0.0, start - ANCHOR_PAD)
+        hi = min(limit, end + ANCHOR_PAD)
+        if hi - lo < MIN_ANCHOR_WINDOW:
+            continue
+
+        spans = []
+        for text, start, end in align_line(lo, hi, tokens):
+            if not norm(text):
+                continue
+            spans.append({
+                "word": text,
+                "start": lo + float(start),
+                "end": lo + float(end),
+            })
+
+        segments.extend(regroup_spans_into_lines(spans, [tokens]))
+
+    if not segments:
+        return None
+    return sanitize(segments, audio_end)
+
 
 def run_forced(audio_path, lyrics_text, language, device, dtype_name):
     import numpy as np
@@ -171,58 +359,24 @@ def run_forced(audio_path, lyrics_text, language, device, dtype_name):
         "Qwen/Qwen3-ForcedAligner-0.6B", dtype=dtype, device_map=device
     )
 
-    spans = []
-    cursor = 0.0
-    token_i = 0
-    stalls = 0
-
-    while token_i < len(tokens) and cursor < audio_end - 0.2:
-        win_end = min(cursor + WINDOW_SECONDS, audio_end)
-        final_window = win_end >= audio_end - 0.05
-
-        # Give this window a proportional share of what's left, plus slack —
-        # over-supplying is safe because unconsumed tokens roll forward.
-        remaining_time = max(0.1, audio_end - cursor)
-        share = (win_end - cursor) / remaining_time
-        est = int(len(tokens[token_i:]) * share * 1.6) + 8
-        chunk = tokens[token_i:token_i + est]
-        if not chunk:
-            break
-
+    def align_window(cursor, win_end, chunk):
         clip = audio[int(cursor * SAMPLE_RATE):int(win_end * SAMPLE_RATE)]
         try:
             results = model.align(audio=(clip, SAMPLE_RATE), text=" ".join(chunk), language=language)
             items = list(results[0])
         except Exception as e:
             print(f"[align] window {cursor:.0f}-{win_end:.0f}s failed: {e}", file=sys.stderr)
-            items = []
+            return []
+        return [
+            (
+                getattr(it, "text", "") or "",
+                float(getattr(it, "start_time", 0.0) or 0.0),
+                float(getattr(it, "end_time", 0.0) or 0.0),
+            )
+            for it in items
+        ]
 
-        cutoff = (win_end - cursor) if final_window else (win_end - cursor - TAIL_MARGIN)
-        accepted = []
-        for it in items:
-            text = getattr(it, "text", "") or ""
-            if not norm(text):
-                continue
-            start = float(getattr(it, "start_time", 0.0) or 0.0)
-            end = float(getattr(it, "end_time", 0.0) or 0.0)
-            if not final_window and start >= cutoff:
-                break
-            accepted.append({"word": text, "start": cursor + start, "end": cursor + end})
-
-        if not accepted:
-            # Nothing usable here — step forward rather than spin.
-            stalls += 1
-            cursor = win_end if stalls > 1 else cursor + WINDOW_SECONDS / 2
-            if stalls > 3:
-                print("[align] too many empty windows, stopping", file=sys.stderr)
-                break
-            continue
-
-        stalls = 0
-        spans.extend(accepted)
-        token_i += len(accepted)
-        # Resume where the accepted audio ended so nothing is skipped.
-        cursor = max(accepted[-1]["end"], cursor + 0.5)
+    spans = walk_windows(tokens, audio_end, align_window)
 
     print(
         f"[align] forced: {len(spans)} aligned spans covering "
@@ -233,6 +387,50 @@ def run_forced(audio_path, lyrics_text, language, device, dtype_name):
         return None
 
     return sanitize(regroup_spans_into_lines(spans, lines), audio_end)
+
+
+def run_anchored(audio_path, anchors, language, device, dtype_name):
+    """Forced alignment with known line windows. See align_anchored."""
+    import torch
+    import whisperx
+    from qwen_asr import Qwen3ForcedAligner
+
+    audio = whisperx.load_audio(audio_path)
+    audio_end = len(audio) / SAMPLE_RATE
+    dtype = {"float32": torch.float32, "float16": torch.float16, "bfloat16": torch.bfloat16}[dtype_name]
+
+    print(
+        f"[align] anchored: device={device} dtype={dtype_name} lines={len(anchors)} "
+        f"audio={audio_end:.0f}s",
+        file=sys.stderr,
+    )
+    model = Qwen3ForcedAligner.from_pretrained(
+        "Qwen/Qwen3-ForcedAligner-0.6B", dtype=dtype, device_map=device
+    )
+
+    def align_line(lo, hi, tokens):
+        clip = audio[int(lo * SAMPLE_RATE):int(hi * SAMPLE_RATE)]
+        try:
+            results = model.align(audio=(clip, SAMPLE_RATE), text=" ".join(tokens), language=language)
+            items = list(results[0])
+        except Exception as e:
+            print(f"[align] line {lo:.1f}-{hi:.1f}s failed: {e}", file=sys.stderr)
+            return []
+        return [
+            (
+                getattr(it, "text", "") or "",
+                float(getattr(it, "start_time", 0.0) or 0.0),
+                float(getattr(it, "end_time", 0.0) or 0.0),
+            )
+            for it in items
+        ]
+
+    segments = align_anchored(anchors, audio_end, align_line)
+    print(
+        f"[align] anchored: {len(segments or [])} of {len(anchors)} lines aligned",
+        file=sys.stderr,
+    )
+    return segments
 
 
 MIN_WORD_DUR = 0.09
@@ -408,6 +606,7 @@ def main():
     ap.add_argument("--audio", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--lyrics", help="UTF-8 text file of known, untimed lyrics")
+    ap.add_argument("--anchors", help="JSON file of [{text,start,end}] line windows")
     ap.add_argument("--language", default="English")
     ap.add_argument("--device", default="mps")
     ap.add_argument("--dtype", default="float32", choices=["float32", "float16", "bfloat16"])
@@ -420,8 +619,28 @@ def main():
     )
     args = ap.parse_args()
 
+    anchors = None
+    if args.anchors:
+        try:
+            with open(args.anchors, "r", encoding="utf-8") as fh:
+                anchors = json.load(fh)
+        except Exception as e:
+            print(f"[align] could not read anchors, falling back: {e}", file=sys.stderr)
+            anchors = None
+
     segments = None
-    if args.lyrics:
+    if anchors:
+        try:
+            segments = run_anchored(args.audio, anchors, args.language, args.device, args.dtype)
+        except Exception as e:
+            print(f"[align] anchored alignment failed ({e}); falling back", file=sys.stderr)
+            segments = None
+        if not segments:
+            print("[align] anchored pass produced nothing, falling back", file=sys.stderr)
+
+    if segments:
+        pass
+    elif args.lyrics:
         try:
             with open(args.lyrics, "r", encoding="utf-8") as fh:
                 lyrics_text = fh.read()
