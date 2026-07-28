@@ -13,7 +13,12 @@ function matchTrack(results, name, artist) {
   const normArtist = normalize(artist);
   const primaryArtist = normArtist.split(" ")[0];
 
-  const candidates = (results || []).filter((r) => r.syncedLyrics || r.plainLyrics);
+  // Synced-only. LRCLIB often lists a tidily-titled plain-text row alongside a
+  // scrappier row that actually carries the LRC; scoring both together let the
+  // plain row win on metadata and then fail the `syncedLyrics` check below,
+  // throwing away timings that were available. Since a caller without synced
+  // lyrics gets nothing anyway, unsynced rows should never enter the contest.
+  const candidates = (results || []).filter((r) => r.syncedLyrics);
   let bestMatch = null;
   let bestScore = -Infinity;
 
