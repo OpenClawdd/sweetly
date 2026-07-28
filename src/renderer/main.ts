@@ -21,6 +21,16 @@ import "../css/Lyrics/Mixed.css";
 import "../css/Loaders/LoaderContainer.css";
 import "../css/font-pack/font-pack.css";
 import "../css/settings-panel.css";
+// Dropped when this entry replaced app.tsx (app.tsx:47-49), which made the
+// Settings and Lyrics Manager buttons look dead: PopupModal.display() appends
+// <sl-generic-modal> to document.body and both panels mount into it, but with
+// no base rules the overlay has no positioning, size or backdrop — the click
+// ran, React rendered, and nothing was visible. default.css:747 only *layers
+// on top of* the polyfill ("loaded later"), so it cannot substitute for it.
+// NPVLyrics.css is deliberately still omitted; it styles Spotify's chrome.
+import "../css/polyfills/generic-modal-polyfill.css";
+import "../css/polyfills/sonner-polyfill.css";
+import "../components/ReactComponents/LyricsManager/styles.css";
 import "tippy.js/dist/tippy.css";
 import "./styles/punch.css";
 
@@ -54,6 +64,28 @@ onMusicStateChange((state) => {
   return lastPositionMs + (Date.now() - lastUpdateTimestamp);
 };
 (globalThis as any).__sweetlyIsPlaying = () => getMusicState().status === "playing";
+
+// One bad apply must not poison every later one.
+//
+// ApplyLyrics calls DestroyAllLyricsContainers() *before* it rebuilds, so if
+// anything throws partway the container is left detached. The next apply then
+// reaches CreateLyricsContainer.ts:36, `ResizeListener.unobserve(
+// Container.parentElement)` — and parentElement is null on a detached node, so
+// unobserve throws a TypeError before a single line can render. Every
+// subsequent track then fails identically: one unsynced song blanked the rest
+// of the session.
+//
+// Unobserving something that is not an Element is meaningless rather than
+// dangerous — there is nothing to stop observing — so absorbing it costs
+// nothing and breaks the cascade.
+const nativeUnobserve = ResizeObserver.prototype.unobserve;
+ResizeObserver.prototype.unobserve = function (target: Element) {
+  if (!(target instanceof Element)) {
+    console.warn("[Sweetly] ignoring ResizeObserver.unobserve on a non-Element");
+    return;
+  }
+  return nativeUnobserve.call(this, target);
+};
 
 installSpicetifyShim();
 
@@ -91,6 +123,7 @@ async function start(): Promise<void> {
 
   const { fetchLyricsForCurrentTrack } = await import("./lyrics/fetchLyricsElectron.ts");
   const { installViewControlBehaviour } = await import("./adapter/viewControls.ts");
+  const { createEventPump } = await import("./adapter/eventPump.ts");
 
   LoadFonts();
   ApplyFontPixel();
@@ -127,10 +160,51 @@ async function start(): Promise<void> {
   const { startPunchLayer } = await import("./lyrics/punchLayer.ts");
   startPunchLayer();
 
+  // app.tsx:919-923 polled at 0.5s and evoked playback:position; 969-977 wired
+  // songchange/playpause off Spotify's player events. Our entry reproduced
+  // neither, leaving NowBar's progress bar frozen at 0:00 and
+  // dynamicBackground's artwork crossfade dead. See adapter/eventPump.ts.
+  console.log(
+    "[Sweetly] diag: Global bus:", typeof upstream.Global?.Event?.evoke,
+    "| .ViewControl count:", document.querySelectorAll(".ViewControl").length,
+    "| control ids:", [...document.querySelectorAll(".ViewControl")].map((e) => e.id).join(","),
+    "| Fullscreen.IsOpen:", (upstream.Fullscreen as any)?.IsOpen,
+  );
+
+  let diagTicks = 0;
+  const pump = createEventPump({
+    evoke: (name, payload) => {
+      if (name !== "playback:position" || diagTicks < 3) {
+        console.log("[Sweetly] diag: evoke:", name);
+      }
+      upstream.Global.Event.evoke(name, payload);
+    },
+    getPosition: () => GetProgress(),
+    isPlaying: () => getMusicState().status === "playing",
+    getUri: () => trackKey() ?? undefined,
+  });
+  new IntervalManager(0.5, () => {
+    if (diagTicks < 3) {
+      console.log("[Sweetly] diag: pump tick", diagTicks, "pos:", GetProgress(), "uri:", trackKey());
+    }
+    diagTicks += 1;
+    pump.tick();
+  }).Start();
+
   let lastKey: string | null = null;
 
   async function loadLyricsForCurrentTrack(): Promise<void> {
+    // Guard against out-of-order resolution. A track whose lyrics exhaust every
+    // provider (Hot N' Cold has neither Apple nor LRCLIB coverage) can take
+    // many seconds; skip to another track meanwhile and the slow fetch would
+    // resolve last and paint its empty result over the new track's lyrics,
+    // leaving the overlay blank until the next switch.
+    const requestedFor = trackKey();
     const result = await fetchLyricsForCurrentTrack();
+    if (trackKey() !== requestedFor) {
+      console.log("[Sweetly] discarding stale lyrics result for:", requestedFor);
+      return;
+    }
 
     const contentBox = document.querySelector<HTMLElement>("#SpicyLyricsPage .ContentBox") || document.querySelector<HTMLElement>(".ContentBox") || document.body;
     if (contentBox) void ApplyDynamicBackground(contentBox, "lpagebg");
@@ -155,7 +229,29 @@ async function start(): Promise<void> {
     }
     $currentlyFetching.set(false);
 
-    await ApplyLyrics(result as any);
+    console.log(
+      "[Sweetly] diag: applying:", requestedFor,
+      "| descriptor:", typeof content === "string" ? content : `Type=${(content as any)?.Type}`,
+      "| Unsynced:", (content as any)?.Unsynced,
+      "| containerExists:", upstream.$lyricsContainerExists.get(),
+      "| PageContainer:", !!upstream.PageContainer,
+    );
+
+    try {
+      await ApplyLyrics(result as any);
+      console.log(
+        "[Sweetly] diag: applied OK:", requestedFor,
+        "| containerExists now:", upstream.$lyricsContainerExists.get(),
+        "| .line count:", document.querySelectorAll(".LyricsContent .line").length,
+      );
+    } catch (err) {
+      // Previously `void loadLyricsForCurrentTrack()` swallowed this entirely,
+      // so a throw on one track was invisible even though it can leave the
+      // containers destroyed (ApplyLyrics calls DestroyAllLyricsContainers
+      // before it builds).
+      console.error("[Sweetly] diag: ApplyLyrics THREW for:", requestedFor, err);
+      throw err;
+    }
   }
 
   (globalThis as any).__sweetlyReloadLyrics = loadLyricsForCurrentTrack;
@@ -172,7 +268,9 @@ async function start(): Promise<void> {
     lastKey = key;
     if (!key) return;
 
-    void loadLyricsForCurrentTrack();
+    loadLyricsForCurrentTrack().catch((err) => {
+      console.error("[Sweetly] diag: lyrics load failed for:", key, err);
+    });
   });
 
   // A music-update may already have landed before we subscribed.
