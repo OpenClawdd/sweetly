@@ -140,22 +140,29 @@ async function toggleFullscreen() {
     return;
   }
 
-  if (isMaximized) {
-    console.log("[Sweetly-Main] toggleFullscreen: restoring (unfullscreen)");
-    if (normalBounds) {
-      console.log("[Sweetly-Main] toggleFullscreen: normalBounds=", normalBounds);
-      mainWindow.setBounds(normalBounds);
-    }
-    isMaximized = false;
-  } else {
-    console.log("[Sweetly-Main] toggleFullscreen: maximizing");
+  // Real fullscreen, not work-area sizing. The old implementation resized the
+  // window to display.workArea — but the window is normally *already* that
+  // size (both measured {x:0,y:39,w:1800,h:1130}), so pressing the button
+  // resized it to its current dimensions and appeared to do nothing at all.
+  // setFullScreen also hides the menu bar and dock, which is what the control
+  // is actually for.
+  const goingFullscreen = !mainWindow.isFullScreen();
+  console.log("[Sweetly-Main] toggleFullscreen:", goingFullscreen ? "entering" : "leaving");
+
+  if (goingFullscreen) {
     normalBounds = mainWindow.getBounds();
-    console.log("[Sweetly-Main] toggleFullscreen: saved bounds=", normalBounds);
-    const display = screen.getPrimaryDisplay();
-    const { x, y, width, height } = display.workArea;
-    console.log("[Sweetly-Main] toggleFullscreen: workArea=", { x, y, width, height });
-    mainWindow.setBounds({ x, y, width, height });
-    isMaximized = true;
+  }
+  mainWindow.setFullScreen(goingFullscreen);
+  isMaximized = goingFullscreen;
+
+  // A frameless, transparent window occasionally comes back from fullscreen
+  // with stale bounds; restore what we captured on the way in.
+  if (!goingFullscreen && normalBounds) {
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isFullScreen()) {
+        mainWindow.setBounds(normalBounds);
+      }
+    }, 250);
   }
 }
 
@@ -275,7 +282,9 @@ function createWindow() {
   mainWindow.webContents.on("console-message", (event) => {
     const levels = ["debug", "info", "warning", "error"];
     const level = levels[event.level] ?? event.level;
-    if (level === "error" || level === "warning" || event.message.startsWith("[Sweetly]")) {
+    // "[Sweetly" not "[Sweetly]" — diagnostic tags like [Sweetly-Controls] and
+    // [Sweetly-Diag] were being silently dropped by the stricter prefix.
+    if (level === "error" || level === "warning" || event.message.startsWith("[Sweetly")) {
       console.log(`[Renderer:${level}] ${event.message}  (${event.sourceId}:${event.line})`);
     }
   });
