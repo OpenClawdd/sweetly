@@ -3,6 +3,7 @@ import path from "node:path";
 import os from "node:os";
 import { customKey, customKeyCandidates, stripLyricsExt, slugify } from "../customKey.js";
 import { parseTtmlXmlToJson } from "../ttmlXml.js";
+import { lyricsCoverTrack } from "../utils.js";
 
 const CUSTOM_DIR = path.join(os.homedir(), ".sweetly-custom");
 
@@ -42,7 +43,7 @@ function fuzzyMatch(files, candidates) {
   return null;
 }
 
-export function getCustomLyrics(name, artist) {
+export function getCustomLyrics(name, artist, trackDuration) {
   if (!name) return null;
   ensureCustomDir();
 
@@ -78,6 +79,18 @@ export function getCustomLyrics(name, artist) {
       console.log("[Sweetly-Main] Custom TTML parsed to no lines:", filePath);
       return null;
     }
+    // A collapsed alignment parses and renders perfectly — it just flashes the
+    // whole song past in a few seconds. Treat it as absent so the pipeline
+    // falls through to a source that still has usable timings.
+    if (!lyricsCoverTrack(parsed, trackDuration)) {
+      console.log(
+        "[Sweetly-Main] Custom TTML timings collapsed, ignoring file:",
+        filePath,
+        `(lines end well before ${Math.round(trackDuration)}s track)`,
+      );
+      return null;
+    }
+
     console.log("[Sweetly-Main] Loaded custom local TTML from disk:", filePath, `(${parsed.Content.length} lines)`);
     return parsed;
   } catch (e) {

@@ -5,6 +5,7 @@ import { fetchLRCLib } from "./sources/lrclib.js";
 import { fetchGenius } from "./sources/genius.js";
 import { scrapeSpotifySearch, fetchSpicyLyricsData } from "./sources/spotify.js";
 import { triggerAutoAlignment } from "./autoAligner.js";
+import { pickAlignmentText, toLineAnchors } from "./utils.js";
 
 /**
  * Run one lyrics source without letting it take down the pipeline.
@@ -43,7 +44,7 @@ export async function fetchLyricsData(name, artist, album, playback = {}) {
   const appleResultPromise = safe("apple", () => findAppleMusicLyrics(name, artist, album));
 
   // 1. User-supplied / AI-aligned TTML in ~/.sweetly-custom
-  const customData = await safe("custom", () => getCustomLyrics(name, artist));
+  const customData = await safe("custom", () => getCustomLyrics(name, artist, playback.duration));
   if (customData) {
     console.log("[Sweetly-Main] Using custom local lyrics for:", name);
     const appleResult = await appleResultPromise;
@@ -82,16 +83,35 @@ export async function fetchLyricsData(name, artist, album, playback = {}) {
     return { data: spicyData, provider: "spicylyrics", artworkUrl: appleArtwork };
   }
 
+  // LRCLIB is fetched here rather than at its own step below, because the
+  // aligner needs two things from it: uncensored text (Apple masks words on
+  // most of this library) and line-level time windows to anchor against.
+  const lrcLib = await safe("lrclib", () => fetchLRCLib(name, artist));
+
   // Nothing word-level exists anywhere. Capture the audio as it plays and
-  // derive timings — using Apple's untimed text as the alignment target when
-  // we have it, so the aligner never has to guess the words.
+  // derive timings from the cleanest untimed text we have.
+  const alignTarget = pickAlignmentText([
+    { source: "lrclib", text: lyricsToPlainText(lrcLib) },
+    { source: "apple", text: lyricsToPlainText(appleLyrics) },
+  ]);
+  // Anchors only come from the source whose text we actually chose — mixing
+  // one source's windows with another's wording would misalign every line.
+  const anchors = alignTarget?.source === "lrclib" ? toLineAnchors(lrcLib) : [];
+  if (alignTarget) {
+    console.log(
+      "[Sweetly-Main] Alignment target:", alignTarget.source,
+      anchors.length ? `(${anchors.length} anchored lines)` : "(unanchored)",
+    );
+  }
+
   const alignResult = await safe("auto-aligner", () =>
     triggerAutoAlignment({
       name,
       artist,
       duration: playback.duration,
       position: playback.position ?? 0,
-      lyricsText: lyricsToPlainText(appleLyrics),
+      lyricsText: alignTarget?.text ?? "",
+      anchors,
     }),
   );
   if (alignResult && !alignResult.started) {
@@ -105,8 +125,8 @@ export async function fetchLyricsData(name, artist, album, playback = {}) {
     return { data: appleLyrics, provider: "apple", artworkUrl: appleArtwork };
   }
 
-  // 6. LRCLIB (line-level LRC), then Genius (plain text)
-  const lrcLib = await safe("lrclib", () => fetchLRCLib(name, artist));
+  // 6. LRCLIB (line-level LRC), then Genius (plain text).
+  // Already fetched above, because the aligner needed its text and anchors.
   if (lrcLib) {
     console.log("[Sweetly-Main] Got synced lyrics from LRCLIB");
     return { data: lrcLib, provider: "lrclib", artworkUrl: appleArtwork };
