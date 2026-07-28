@@ -184,6 +184,40 @@ function extractParenthesesBackgrounds(item: any): any {
   return item;
 }
 
+/**
+ * Give Static payloads the `Lines` array upstream's applier requires.
+ *
+ * Every source in this app emits Spicy's `{ Type, Content }` shape, but
+ * ApplyStaticLyrics (Static.ts:63) reads `data.Lines` and immediately calls
+ * `.some(...)` on it. For an unsynced track — Apple serves these as
+ * itunes:timing="None" — that threw:
+ *
+ *   TypeError: Cannot read properties of undefined (reading 'some')
+ *
+ * The damage outlived the track. ApplyLyrics runs DestroyAllLyricsContainers()
+ * *before* it builds, so throwing partway left a detached container behind, and
+ * every later apply died in its cleanup with "Failed to execute 'unobserve' on
+ * 'ResizeObserver'". A single unsynced song blanked every song after it.
+ */
+function withStaticLines(data: SpicyLyrics): SpicyLyrics {
+  if (data.Type !== "Static") return data;
+
+  const Lines = ((data as any).Content ?? []).map((line: any) => {
+    if (typeof line?.Text === "string") return { Text: line.Text };
+
+    const syllables = line?.Lead?.Syllables ?? [];
+    // IsPartOfWord marks a syllable that continues the previous word, so it
+    // must not gain a leading space.
+    const Text = syllables
+      .map((s: any, i: number) => (i > 0 && !s?.IsPartOfWord ? " " : "") + (s?.Text ?? ""))
+      .join("")
+      .trim();
+    return { Text };
+  });
+
+  return { ...data, Lines } as SpicyLyrics;
+}
+
 /** Pure. Everything testable about the fetch path lives here. */
 export function normaliseLyricsResponse(response: unknown): LyricsResult {
   if (!response || typeof response !== "object") return ["lyrics-not-found", 404];
@@ -200,7 +234,7 @@ export function normaliseLyricsResponse(response: unknown): LyricsResult {
   }
 
   if (typeof data === "object" && typeof data.Type === "string") {
-    return [withArrayBackgrounds(withStartTime(expandSyllablesInLyrics(data))), 200];
+    return [withStaticLines(withArrayBackgrounds(withStartTime(expandSyllablesInLyrics(data)))), 200];
   }
 
   return ["unknown-error", 500];
