@@ -283,7 +283,7 @@ export function ApplySyllableLyrics(data: LyricsData, UseRomanized: boolean = fa
           ? word.classList.add("LastWordInLine")
           : lead.IsPartOfWord
             ? word.classList.add("PartOfWord")
-            : null;
+            : (word.style.marginRight = "0.32ch");
 
         if (LyricsObject.Types.Syllable.Lines[CurrentLineLyricsObject]?.Syllables?.Lead) {
           LyricsObject.Types.Syllable.Lines[CurrentLineLyricsObject].Syllables?.Lead.push({
@@ -301,6 +301,9 @@ export function ApplySyllableLyrics(data: LyricsData, UseRomanized: boolean = fa
 
       if (lead.IsPartOfWord || (prev?.IsPartOfWord && currentWordGroup)) {
         if (!currentWordGroup) {
+          if (iL > 0) {
+            lineElem.appendChild(document.createTextNode(" "));
+          }
           const group = document.createElement("span");
           group.classList.add("word-group");
           lineElem.appendChild(group);
@@ -314,6 +317,9 @@ export function ApplySyllableLyrics(data: LyricsData, UseRomanized: boolean = fa
         }
       } else {
         currentWordGroup = null;
+        if (iL > 0) {
+          lineElem.appendChild(document.createTextNode(" "));
+        }
         lineElem.appendChild(word);
       }
     });
@@ -406,7 +412,7 @@ export function ApplySyllableLyrics(data: LyricsData, UseRomanized: boolean = fa
               ? bwE.classList.add("LastWordInLine")
               : bw.IsPartOfWord
                 ? bwE.classList.add("PartOfWord")
-                : null;
+                : (bwE.style.marginRight = "0.32ch");
           }
 
           const prevBG = bA[bI - 1];
