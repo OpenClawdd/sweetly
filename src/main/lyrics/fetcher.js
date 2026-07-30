@@ -1,5 +1,5 @@
 import { getCustomLyrics } from "./sources/custom.js";
-import { findAppleMusicLyrics } from "../appleMusicApi.js";
+import { findAppleMusicLyrics, fetchITunesArtwork } from "../appleMusicApi.js";
 import { fetchBiniLyrics } from "./sources/binilyrics.js";
 import { fetchLRCLib } from "./sources/lrclib.js";
 import { fetchGenius } from "./sources/genius.js";
@@ -40,45 +40,51 @@ function lyricsToPlainText(data) {
 export async function fetchLyricsData(name, artist, album, playback = {}, opts = {}) {
   console.log("[Sweetly-Main] fetchLyricsData:", name, artist, "album:", album);
 
-  // Kicked off first so the network round-trip overlaps the local disk check.
-  const appleResultPromise = safe("apple", () => findAppleMusicLyrics(name, artist, album, opts));
-
-  // 1. User-supplied / AI-aligned TTML in ~/.sweetly-custom
-  const customData = await safe("custom", () => getCustomLyrics(name, artist, playback.duration, opts));
-  const appleResult = await appleResultPromise;
+  const appleResult = await safe("apple", () => findAppleMusicLyrics(name, artist, album, opts));
   const appleLyrics = appleResult?.lyrics;
-  const appleArtwork = playback.artworkUrl || appleResult?.artworkUrl || null;
+  let appleArtwork = playback.artworkUrl || appleResult?.artworkUrl || null;
 
-  if (customData) {
-    console.log("[Sweetly-Main] Using custom local lyrics for:", name);
-    return { data: customData, provider: "spicylyrics", artworkUrl: appleArtwork };
+  if (!appleArtwork) {
+    appleArtwork = await safe("itunes-artwork", () => fetchITunesArtwork(name, artist, album));
   }
 
-  // 2. Apple Music, but only when it actually came back syllable-level
+  // 1. Apple Music native syllable-level TTML (Studio-level word timings)
   if (appleLyrics?.Content) {
-    const wordCount = appleLyrics.Content.reduce((sum, line) => sum + (line.Lead?.Syllables?.length || 0), 0);
-    const isWordLevel = wordCount > appleLyrics.Content.length * 1.3;
-    console.log("[Sweetly-Main] Apple Music:", appleLyrics.Content.length, "lines,", wordCount, "words, wordLevel:", isWordLevel);
+    const isWordLevel = appleLyrics.Timing?.toLowerCase() === "word";
+    console.log("[Sweetly-Main] Apple Music:", appleLyrics.Content.length, "lines, timing:", appleLyrics.Timing || "unset", "isWordLevel:", isWordLevel);
     if (isWordLevel) {
       console.log("[Sweetly-Main] Using native Apple Music syllable-level TTML for:", name);
+      appleLyrics.Provider = "Apple Music";
+      appleLyrics.IsCommunity = false;
       return { data: appleLyrics, provider: "apple", artworkUrl: appleArtwork };
     }
   }
 
-  // 3. BiniLyrics — community word-level TTML
+  // 2. Spicy & Community TTML (Custom local -> BiniLyrics -> spicylyrics.org)
+  const customData = await safe("custom", () => getCustomLyrics(name, artist, playback.duration, opts));
+  if (customData) {
+    console.log("[Sweetly-Main] Using custom local lyrics for:", name);
+    customData.Provider = "Spicy Lyrics";
+    customData.IsCommunity = true;
+    return { data: customData, provider: "spicylyrics", artworkUrl: appleArtwork };
+  }
+
   const biniLyrics = await safe("binilyrics", () => fetchBiniLyrics(name, artist));
   if (biniLyrics) {
     console.log("[Sweetly-Main] Got word-level community TTML from BiniLyrics for:", name);
+    biniLyrics.Provider = "Spicy Lyrics";
+    biniLyrics.IsCommunity = true;
     return { data: biniLyrics, provider: "spicylyrics", artworkUrl: appleArtwork };
   }
 
-  // 4. spicylyrics.org, keyed by a scraped Spotify track id
   const spicyData = await safe("spicylyrics", async () => {
-    const spotifyId = (await scrapeSpotifySearch(`${name} ${artist}`)) || (await scrapeSpotifySearch(name));
+    const spotifyId = (await scrapeSpotifySearch(name, artist)) || (await scrapeSpotifySearch(`${name} ${artist}`));
     return spotifyId ? await fetchSpicyLyricsData(spotifyId) : null;
   });
   if (spicyData) {
     console.log("[Sweetly-Main] Got community TTML from spicylyrics.org for:", name);
+    spicyData.Provider = "Spicy Lyrics";
+    spicyData.IsCommunity = true;
     return { data: spicyData, provider: "spicylyrics", artworkUrl: appleArtwork };
   }
 
@@ -121,6 +127,8 @@ export async function fetchLyricsData(name, artist, album, playback = {}, opts =
   // Unsynced plain text is worse than LRCLIB's synced LRC, so it waits.
   if (appleLyrics && !appleLyrics.Unsynced) {
     console.log("[Sweetly-Main] Fallback to Apple Music line-level TTML");
+    appleLyrics.Provider = "Apple Music (Line-Synced, Translated to TTML)";
+    appleLyrics.IsCommunity = false;
     return { data: appleLyrics, provider: "apple", artworkUrl: appleArtwork };
   }
 
@@ -128,6 +136,8 @@ export async function fetchLyricsData(name, artist, album, playback = {}, opts =
   // Already fetched above, because the aligner needed its text and anchors.
   if (lrcLib) {
     console.log("[Sweetly-Main] Got synced lyrics from LRCLIB");
+    lrcLib.Provider = "LRCLIB (Line-Synced)";
+    lrcLib.IsCommunity = false;
     return { data: lrcLib, provider: "lrclib", artworkUrl: appleArtwork };
   }
 
@@ -135,6 +145,8 @@ export async function fetchLyricsData(name, artist, album, playback = {}, opts =
   // words are at least readable.
   if (appleLyrics) {
     console.log("[Sweetly-Main] Falling back to Apple Music UNSYNCED text");
+    appleLyrics.Provider = "Apple Music (Unsynced)";
+    appleLyrics.IsCommunity = false;
     return { data: appleLyrics, provider: "apple", artworkUrl: appleArtwork };
   }
 

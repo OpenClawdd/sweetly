@@ -8,6 +8,10 @@
 import { splitLineToSyllables } from "./utils.js";
 
 export function parseTtmlXmlToJson(xml, opts = {}) {
+  if (!xml || typeof xml !== "string") return null;
+
+  const declaredTiming = (xml.match(/(?:itunes:)?timing="([^"]+)"/i) || [])[1] || "";
+
   const parseTime = (ts) => {
     if (!ts) return 0;
     if (typeof ts === "number") return ts;
@@ -105,6 +109,7 @@ export function parseTtmlXmlToJson(xml, opts = {}) {
 
   /** Flat span list -> Syllables, preserving inter-span whitespace as word breaks. */
   const parseSyllables = (content) => {
+    const isWordTiming = declaredTiming.toLowerCase() === "word";
     const spanRegex = /<(?:span|sy)\b[^>]*>([\s\S]*?)<\/(?:span|sy)>/g;
     const spanMatches = [];
     let sm;
@@ -128,23 +133,26 @@ export function parseTtmlXmlToJson(xml, opts = {}) {
         if (/\s/.test(between)) spaceBetween = true;
       }
 
-      const isPartOfWord = !isLast && !endsWithSpace && !spaceBetween;
+      const isPartOfWord = isWordTiming && !isLast && !endsWithSpace && !spaceBetween && !/[.,?!;:)"']$/.test(rawText);
 
-      const startTime = parseTime(sBegin || "0");
-      const endTime = parseTime(sEnd || "0");
+      let startTime = parseTime(sBegin || "0");
+      let endTime = parseTime(sEnd || "0");
+      if (endTime <= startTime) {
+        endTime = startTime + 0.2;
+      }
 
       if (/\s/.test(rawText)) {
         const words = rawText.split(/\s+/).filter(Boolean);
-        const duration = endTime > startTime ? endTime - startTime : 0;
+        const duration = Math.max(0.1, endTime - startTime);
         words.forEach((w, wi) => {
           const wIsLast = isLast && wi === words.length - 1;
           const wIsPartOfWord = !wIsLast && (wi < words.length - 1 ? false : isPartOfWord);
-          const wStart = duration > 0 ? startTime + (wi / words.length) * duration : startTime;
-          const wEnd = duration > 0 ? startTime + ((wi + 1) / words.length) * duration : endTime;
+          const wStart = startTime + (wi / words.length) * duration;
+          const wEnd = startTime + ((wi + 1) / words.length) * duration;
           syllables.push({
             Text: w,
             StartTime: wStart,
-            EndTime: wEnd,
+            EndTime: Math.max(wEnd, wStart + 0.05),
             IsPartOfWord: wIsPartOfWord,
           });
         });
@@ -152,7 +160,7 @@ export function parseTtmlXmlToJson(xml, opts = {}) {
         syllables.push({
           Text: rawText,
           StartTime: startTime,
-          EndTime: endTime,
+          EndTime: Math.max(endTime, startTime + 0.05),
           IsPartOfWord: isPartOfWord,
         });
       }
@@ -248,11 +256,33 @@ export function parseTtmlXmlToJson(xml, opts = {}) {
     );
     const isSynced = declaredTiming.toLowerCase() !== "none" && hasAnyTimestamp;
 
+    const songWriters = [];
+    const swRegex = /<(?:ttm:)?songwriter\b[^>]*>([\s\S]*?)<\/(?:ttm:)?songwriter>/gi;
+    let swm;
+    while ((swm = swRegex.exec(xml)) !== null) {
+      const name = cleanText(swm[1]);
+      if (name && !songWriters.includes(name)) songWriters.push(name);
+    }
+
+    let author = "";
+    const authorMatch = xml.match(/<(?:author|uploader|created_by|creator)\b[^>]*>([\s\S]*?)<\/(?:author|uploader|created_by|creator)>/i);
+    if (authorMatch) {
+      author = cleanText(authorMatch[1]);
+    }
+
     console.log(
       "[AppleMusicAPI] Parsed TTML:", lines.length, "lines",
       `timing="${declaredTiming || "unset"}"`, isSynced ? "" : "(UNSYNCED)",
+      songWriters.length ? `writers: [${songWriters.join(", ")}]` : "",
     );
-    return { Content: lines, Type: isSynced ? "Syllable" : "Static", Unsynced: !isSynced };
+    return {
+      Content: lines,
+      Type: isSynced ? "Syllable" : "Static",
+      Unsynced: !isSynced,
+      Timing: declaredTiming,
+      ...(songWriters.length ? { SongWriters: songWriters } : {}),
+      ...(author ? { Author: author } : {}),
+    };
   }
 
   return null;

@@ -806,16 +806,40 @@
 
 
 #SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .Credits {
-  /* `em` is, by definition, relative to the parent element's font-size. The
-     parent (.SpicyLyricsScrollContainer) inherits font-size: var(--DefaultLyricsSize)
-     from .LyricsContent, so this scales with the lyrics without needing a
-     container-type on the scroll container (which would break its height). */
-  font-size: 0.47em !important;
-  font-weight: 600 !important;
-  opacity: 0.6;
-  margin: 1cqw 0 0 !important;
+  font-size: 0.5em !important;
+  font-weight: 500 !important;
+  opacity: 0.85;
+  margin: 3em 0 2em 0 !important;
   scale: 1;
-  color: white;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+  text-align: left;
+}
+
+#SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .Credits .CreditItem {
+  line-height: 1.4;
+}
+
+#SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .Credits .SongWritersLine {
+  font-size: 1.1em;
+  font-weight: 600;
+  opacity: 0.95;
+  margin-bottom: 0.25em;
+}
+
+#SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .Credits .ProviderLine {
+  opacity: 0.7;
+}
+
+#SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .Credits .CommunityNotice {
+  opacity: 0.7;
+}
+
+#SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .Credits .AuthorLine {
+  opacity: 0.85;
+  font-weight: 600;
 }
 
 
