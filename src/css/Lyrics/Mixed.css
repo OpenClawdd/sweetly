@@ -309,16 +309,8 @@
   .LyricsContent
   .line
   .letterGroup:not(.PartOfWord, .dot, .LastWordInLine)::after {
-  content: " ";
-  white-space: pre;
-}
-
-#SpicyLyricsPage.SpicyRenderer
-  .LyricsContainer
-  .LyricsContent
-  .line
-  :is(.word, .letterGroup):not(.PartOfWord, .dot, .LastWordInLine) {
-  margin-right: 0.35ch !important;
+  content: "";
+  margin-right: 0.32ch;
 }
 
 #SpicyLyricsPage.SpicyRenderer .LyricsContainer .LyricsContent .line.NotSung .word,
