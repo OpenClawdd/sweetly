@@ -188,3 +188,6 @@ __pycache__/
 *.m4a
 *.wav
 *.flac
+
+# macOS
+.DS_Store
