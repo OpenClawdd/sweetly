@@ -242,12 +242,21 @@ export function normaliseLyricsResponse(response: unknown): LyricsResult {
 
 import { $forceWordLevel } from "../../utils/stores.ts";
 
+/** Which track the currently-held artwork belongs to, so it is not reused. */
+let artworkTrackKey: string | null = null;
+
 export async function fetchLyricsForCurrentTrack(): Promise<LyricsResult> {
   const track = getMusicState().track;
   if (!track) return ["unknown-track", 404];
 
   const api = (globalThis as unknown as { electronAPI?: any }).electronAPI;
   if (!api?.fetchLyrics) return ["unknown-error", 500];
+
+  const trackKey = `${track.artistCleaned}--${track.nameCleaned}`;
+  if (trackKey !== artworkTrackKey) {
+    setArtworkUrl(null);
+    artworkTrackKey = trackKey;
+  }
 
   try {
     const response = await api.fetchLyrics({
@@ -258,7 +267,14 @@ export async function fetchLyricsForCurrentTrack(): Promise<LyricsResult> {
     });
 
     // Artwork rides along on this response — AppleScript gives us no image.
-    setArtworkUrl(response?.artworkUrl ?? null);
+    //
+    // Only overwrite when this response actually carried one. `?? null` blanked
+    // the cover for the rest of the track whenever the fetch came back without
+    // artwork, which is every path that falls through to a text-only provider,
+    // and GetCover then serves PLACEHOLDER to NowBar and the dynamic background
+    // alike. Keeping the previous URL is strictly better: it is the cover for
+    // this same track, put there by an earlier, richer response.
+    if (response?.artworkUrl) setArtworkUrl(response.artworkUrl);
 
     const result = normaliseLyricsResponse(response);
     const [content] = result;
