@@ -1147,10 +1147,16 @@ function App() {
       const hasA = !!r?.artworkUrl;
       log(`Init: lyrics=${hasL} lines=${r?.parsed?.lines?.length || 0} artwork=${hasA}`);
       setParsedLyrics(r?.parsed ?? null);
-      setArtworkUrl(r?.artworkUrl ?? null);
+      setArtworkUrl(r?.artworkUrl || track?.artworkUrl || null);
       setFetching(false);
     }).catch(() => setFetching(false));
   }, [state?.track?.nameCleaned, state?.track?.artistCleaned, state?.status]);
+
+  useEffect(() => {
+    if (state?.track?.artworkUrl && !artworkUrl) {
+      setArtworkUrl(state.track.artworkUrl);
+    }
+  }, [state?.track?.artworkUrl, artworkUrl]);
 
   // A background alignment finished. If it was for the track on screen, pull
   // the lyrics again — the aligner's TTML now sits in ~/.sweetly-custom and

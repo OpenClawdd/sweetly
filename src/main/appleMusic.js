@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { writeFile, readFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { tmpdir } from "node:os";
@@ -88,8 +88,15 @@ export async function exportCurrentArtwork(trackKey) {
       const { stdout } = await execFileAsync("osascript", ["-e", exportScript], { encoding: "utf8", timeout: 3000 });
       const outPath = stdout.trim();
       if (outPath) {
-        cachedArtworkUrl = `file://${ARTWORK_PATH}?t=${Date.now()}`;
-        return cachedArtworkUrl;
+        try {
+          const fileBuf = await readFile(ARTWORK_PATH);
+          if (fileBuf && fileBuf.length > 0) {
+            cachedArtworkUrl = `data:image/png;base64,${fileBuf.toString("base64")}`;
+            return cachedArtworkUrl;
+          }
+        } catch (readErr) {
+          console.error("[AppleScript] Failed to read exported artwork file:", readErr.message);
+        }
       }
     } catch (e) {
       console.error("[AppleScript] exportCurrentArtwork failed:", e.message);

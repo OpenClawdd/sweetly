@@ -289,3 +289,29 @@ export async function findAppleMusicLyrics(name, artist, album, opts = {}) {
     artworkUrl: track.artworkUrl || null,
   };
 }
+
+export async function fetchITunesArtwork(name, artist, album = "") {
+  try {
+    const term = [name, artist, album].filter(Boolean).join(" ");
+    if (!term.trim()) return null;
+    const params = new URLSearchParams({
+      term,
+      entity: "song",
+      limit: "1",
+    });
+    const res = await fetch(`https://itunes.apple.com/search?${params}`);
+    if (res.ok) {
+      const json = await res.json();
+      const song = json?.results?.[0];
+      if (song?.artworkUrl100) {
+        const artworkUrl = song.artworkUrl100.replace("100x100bb", "600x600bb");
+        console.log("[iTunesAPI] Found artwork:", artworkUrl.slice(0, 60) + "...");
+        return artworkUrl;
+      }
+    }
+  } catch (e) {
+    console.error("[iTunesAPI] Search error:", e.message);
+  }
+  return null;
+}
+
