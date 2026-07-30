@@ -462,16 +462,26 @@ Global.Event.listen("playback:playpause", (e: { data?: { isPaused?: boolean } })
   applyPlayPauseAnimationSpeed(!!e?.data?.isPaused);
 });
 
-// TODO: Make this also remove the NPV dynamic bg when we switch to staticBackground mode, as that should be removed.
 const reapplyPageBackground = () => {
   const contentBox = PageContainer?.querySelector<HTMLElement>(".ContentBox");
   if (!contentBox) return;
+
+  // Clean up main page dynamic background
   const kawarp = KawarpMap.get("lpagebg");
   if (kawarp) {
     kawarp.dispose();
     KawarpMap.delete("lpagebg");
   }
   contentBox.querySelectorAll<HTMLElement>(".spicy-dynamic-bg").forEach((el) => el.remove());
+
+  // Clean up NPV dynamic background when toggling static background mode
+  const npvKawarp = KawarpMap.get("npvbg");
+  if (npvKawarp) {
+    npvKawarp.dispose();
+    KawarpMap.delete("npvbg");
+  }
+  document.querySelectorAll<HTMLElement>(".npv-dynamic-bg, .spicy-npv-bg").forEach((el) => el.remove());
+
   void ApplyDynamicBackground(contentBox, "lpagebg");
 };
 

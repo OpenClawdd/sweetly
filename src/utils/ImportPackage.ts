@@ -48,6 +48,7 @@ export const RetrievePackage = async (
     if (pkg === undefined) return undefined;
     return pkg as Package;
   } catch (error: any) {
-    throw new Error(`SpicyLyrics [RetrievePackage] ${error?.message ?? "An Error Occured"}`);
+    console.warn(`SpicyLyrics [RetrievePackage] Optional package ${name} failed to load:`, error?.message);
+    return undefined;
   }
 };

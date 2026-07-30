@@ -1000,19 +1000,44 @@ function UpdateNowBar(force = false) {
       el.addEventListener("transitionend", onEnd);
     });
 
-  //const ArtistsDiv = NowBar.querySelector(".Header .Metadata .Artists");
-  const MetadataContainer = NowBar.querySelector(".Header .Metadata");
-  const ArtistsSpan = MetadataContainer.querySelector(".Artists span");
+  const MetadataContainer = NowBar.querySelector<HTMLElement>(".Header .Metadata");
+  const ArtistsSpan = MetadataContainer?.querySelector(".Artists span");
   const MediaImageContainer = NowBar.querySelector<HTMLDivElement>(".Header .MediaBox .MediaImageContainer");
-  const SongNameSpan = MetadataContainer.querySelector<HTMLElement>(".SongName span");
-  //const MediaBox = NowBar.querySelector(".Header .MediaBox");
-  //const SongName = NowBar.querySelector(".Header .Metadata .SongName");
+  const SongNameSpan = MetadataContainer?.querySelector<HTMLElement>(".SongName span");
 
   if (!$isNowBarOpen.get() && !force) return;
 
+  // Unconditionally update track name & artist metadata
+  if (MetadataContainer) {
+    const songName = SpotifyPlayer.GetName();
+    if (SongNameSpan) {
+      SongNameSpan.textContent = songName ?? "";
+    }
+
+    const contentType = SpotifyPlayer.GetContentType();
+    const ArtistsDiv = MetadataContainer.querySelector<HTMLElement>(".Artists");
+
+    if (contentType === "episode") {
+      const showName = SpotifyPlayer.GetShowName();
+      if (ArtistsDiv) {
+        ArtistsDiv.innerHTML = "<span></span>";
+        const span = ArtistsDiv.querySelector("span");
+        if (span) span.textContent = showName ?? "";
+      }
+    } else {
+      const artists = SpotifyPlayer.GetArtists();
+      if (artists && ArtistsDiv) {
+        ArtistsDiv.innerHTML = "<span></span>";
+        const span = ArtistsDiv.querySelector("span");
+        if (span) span.textContent = artists.map((a) => a.name).join(", ");
+      }
+    }
+    MetadataContainer.classList.remove("tr_VisuallyHidden");
+  }
+
   const coverArt = SpotifyPlayer.GetCover("xlarge");
 
-  // If we have no container or cover art, bail out early
+  // If we have no container or cover art, bail out for artwork animation
   if (!MediaImageContainer || !coverArt) {
     return;
   }
@@ -1122,76 +1147,6 @@ function UpdateNowBar(force = false) {
         }
       });
   }
-
-
-  MetadataContainer.classList.add("tr_VisuallyHidden");
-
-  setTimeout(() => {
-    const songName = SpotifyPlayer.GetName();
-    if (SongNameSpan) {
-      SongNameSpan.textContent = songName ?? "";
-      if (Fullscreen.IsOpen) {
-        const albumUri = (Spicetify?.Player?.data?.item as any)?.metadata?.album_uri as string | undefined;
-        const albumId = albumUri?.split(":")?.[2];
-        if (albumId) {
-          SongNameSpan.classList.add("Clickable");
-          SongNameSpan.onclick = async () => {
-            await Fullscreen.Close();
-            Session.Navigate({ pathname: `/album/${albumId}` });
-          };
-        } else {
-          SongNameSpan.classList.remove("Clickable");
-          SongNameSpan.onclick = null;
-        }
-      } else {
-        SongNameSpan.classList.remove("Clickable");
-        SongNameSpan.onclick = null;
-      }
-    }
-
-    const contentType = SpotifyPlayer.GetContentType();
-    const ArtistsDiv = MetadataContainer.querySelector<HTMLElement>(".Artists");
-
-    if (contentType === "episode") {
-      const showName = SpotifyPlayer.GetShowName();
-      if (ArtistsDiv) {
-        ArtistsDiv.innerHTML = "<span></span>";
-        const span = ArtistsDiv.querySelector("span");
-        if (span) span.textContent = showName ?? "";
-      }
-    }
-
-    const artists = SpotifyPlayer.GetArtists();
-    if (artists && ArtistsDiv && contentType !== "episode") {
-      if (Fullscreen.IsOpen) {
-        ArtistsDiv.innerHTML = "";
-        const scrollWrapper = document.createElement("span");
-        artists.forEach((artist, idx) => {
-          const artistId = (artist.uri as string | undefined)?.split(":")?.[2];
-          const span = document.createElement("span");
-          span.textContent = artist.name;
-          if (artistId) {
-            span.classList.add("Clickable");
-            span.onclick = async () => {
-              await Fullscreen.Close();
-              Session.Navigate({ pathname: `/artist/${artistId}` });
-            };
-          }
-          scrollWrapper.appendChild(span);
-          if (idx < artists.length - 1) {
-            scrollWrapper.appendChild(document.createTextNode(", "));
-          }
-        });
-        ArtistsDiv.appendChild(scrollWrapper);
-      } else {
-        ArtistsDiv.innerHTML = "<span></span>";
-        const span = ArtistsDiv.querySelector("span");
-        if (span) span.textContent = artists.map((artist) => artist.name).join(", ");
-      }
-    }
-
-    setTimeout(() => MetadataContainer.classList.remove("tr_VisuallyHidden"), 80);
-  }, 350);
 }
 
 

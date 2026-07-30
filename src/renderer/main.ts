@@ -121,6 +121,14 @@ async function start(): Promise<void> {
   // import avoids an ESM cycle — see the comment in AppleMusicPlayer.ts.
   setProgressProvider(GetProgress);
 
+  // Start the position-sync loop immediately rather than waiting for the first
+  // music-update. Until it runs once, `syncedPosition` is null and every
+  // GetProgress call — 60 a second, from the animator's rAF loop — logs
+  // "Synced Position: Unavailable" and falls back to the deprecated getter.
+  // With nothing playing that produced thousands of lines and buried every
+  // other diagnostic. The loop reschedules itself, so one call is enough.
+  requestPositionSync();
+
   const { fetchLyricsForCurrentTrack } = await import("./lyrics/fetchLyricsElectron.ts");
   const { installViewControlBehaviour } = await import("./adapter/viewControls.ts");
   const { createEventPump } = await import("./adapter/eventPump.ts");
@@ -157,8 +165,22 @@ async function start(): Promise<void> {
     }
   }).Start();
 
-  const { startPunchLayer } = await import("./lyrics/punchLayer.ts");
-  startPunchLayer();
+  // A/B: punchLayer is disabled pending a verdict on the choppiness.
+  //
+  // Measurement cleared both suspects — the lyric clock runs at 1ms deviation
+  // with 0% stalls, and frames hold ~8.3ms median with zero drops — so the
+  // chop is in what gets drawn, and this is the only thing we added.
+  //
+  // It writes --punch-scale, which no stylesheet reads, and --BlurAmount as an
+  // inline style, which Mixed.css overrides with `!important` in five places
+  // while ScrollToActiveLine manages blur on the same elements. All of that
+  // runs from a MutationObserver on every class change in the subtree, so each
+  // word transition re-queries every line and rewrites its properties.
+  const PUNCH_LAYER_ENABLED = false;
+  if (PUNCH_LAYER_ENABLED) {
+    const { startPunchLayer } = await import("./lyrics/punchLayer.ts");
+    startPunchLayer();
+  }
 
   // app.tsx:919-923 polled at 0.5s and evoked playback:position; 969-977 wired
   // songchange/playpause off Spotify's player events. Our entry reproduced
@@ -260,7 +282,7 @@ async function start(): Promise<void> {
   });
 
   onMusicStateChange((state) => {
-    UpdateNowBar();
+    UpdateNowBar(true);
     requestPositionSync();
 
     const key = state.track ? `${state.track.artistCleaned}--${state.track.nameCleaned}` : null;
@@ -276,7 +298,7 @@ async function start(): Promise<void> {
   // A music-update may already have landed before we subscribed.
   if (trackKey()) {
     lastKey = trackKey();
-    UpdateNowBar();
+    UpdateNowBar(true);
     await loadLyricsForCurrentTrack();
   }
 }

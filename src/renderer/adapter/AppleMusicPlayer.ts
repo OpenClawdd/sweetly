@@ -68,7 +68,25 @@ function trackId(): string | undefined {
   return `${slug(track.artistCleaned)}--${slug(track.nameCleaned)}`;
 }
 
+/**
+ * Playback position in ms, advanced by wall-clock between polls.
+ *
+ * AppleScript is polled every 2s, so the stored position is a staircase. Any
+ * consumer reading it directly gets a clock that jumps 2000ms at a time and
+ * stands still in between — which is what a lyric highlight driven off it looks
+ * like. Extrapolating from the last sample keeps it continuous at frame rate;
+ * the next poll re-anchors it, and GetProgress's jitter filter absorbs the
+ * correction.
+ *
+ * main.ts installs __sweetlyRawPositionMs with exactly this behaviour for the
+ * shim's getPositionState. Reading it here rather than recomputing keeps one
+ * definition of "now" instead of two that can disagree.
+ */
 function rawPositionMs(): number {
+  const extrapolated = (globalThis as any).__sweetlyRawPositionMs?.();
+  if (typeof extrapolated === "number" && Number.isFinite(extrapolated)) {
+    return extrapolated;
+  }
   const track = getMusicState().track;
   return track ? track.position * 1000 : 0;
 }

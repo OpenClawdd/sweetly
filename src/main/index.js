@@ -316,6 +316,20 @@ function createWindow() {
 
 app.setName("Sweetly");
 
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  console.log("[Sweetly-Main] Another instance is already running. Quitting duplicate instance.");
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}
+
 app.commandLine.appendSwitch("no-sandbox");
 
 console.log("[Sweetly-Main] Electron app starting...");
