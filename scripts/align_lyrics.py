@@ -36,7 +36,22 @@ MASK_RE = re.compile(r"^\*{2,}$")
 
 
 def norm(token: str) -> str:
-    return re.sub(r"[^a-z0-9]", "", token.lower())
+    """Comparison key for a token, in any script.
+
+    This used to strip everything outside ASCII [a-z0-9], which silently
+    erased non-Latin text: a Japanese token normalised to "", and
+    align_anchored drops a span whose key is empty. So every Japanese line the
+    aligner *did* place was thrown away immediately afterwards — a 49-line
+    track emitted 14 lines, the only ones containing Latin characters.
+
+    Nothing raised and nothing warned, and 14 lines spread across the track
+    still look healthy to the coverage guard.
+
+    [^\\W_] keeps letters and digits in every script while still discarding
+    punctuation, whitespace and underscores, so Latin behaviour is unchanged
+    and masked tokens (****) still key to "".
+    """
+    return re.sub(r"[\W_]", "", token.lower(), flags=re.UNICODE)
 
 
 def lyric_lines(text: str):
