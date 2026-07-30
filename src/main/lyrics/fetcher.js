@@ -40,7 +40,19 @@ function lyricsToPlainText(data) {
 export async function fetchLyricsData(name, artist, album, playback = {}, opts = {}) {
   console.log("[Sweetly-Main] fetchLyricsData:", name, artist, "album:", album);
 
-  const appleResult = await safe("apple", () => findAppleMusicLyrics(name, artist, album, opts));
+  // Kicked off first so the network round-trip overlaps the local disk check.
+  const appleResultPromise = safe("apple", () => findAppleMusicLyrics(name, artist, album, opts));
+
+  // 1. User-supplied / AI-aligned TTML in ~/.sweetly-custom
+  //
+  // Custom stays ahead of Apple Music. A file in this directory was put there
+  // deliberately — hand-corrected or force-aligned against the actual audio —
+  // so it is the one source that encodes an intent no provider can infer. It
+  // briefly sat below Apple's word-level TTML on the theory that studio timings
+  // always win; that silently ignored every locally aligned track for which
+  // Apple also had word timings, which is most of them.
+  const customData = await safe("custom", () => getCustomLyrics(name, artist, playback.duration, opts));
+  const appleResult = await appleResultPromise;
   const appleLyrics = appleResult?.lyrics;
   let appleArtwork = playback.artworkUrl || appleResult?.artworkUrl || null;
 
@@ -48,7 +60,14 @@ export async function fetchLyricsData(name, artist, album, playback = {}, opts =
     appleArtwork = await safe("itunes-artwork", () => fetchITunesArtwork(name, artist, album));
   }
 
-  // 1. Apple Music native syllable-level TTML (Studio-level word timings)
+  if (customData) {
+    console.log("[Sweetly-Main] Using custom local lyrics for:", name);
+    customData.Provider = "Spicy Lyrics";
+    customData.IsCommunity = true;
+    return { data: customData, provider: "spicylyrics", artworkUrl: appleArtwork };
+  }
+
+  // 2. Apple Music native syllable-level TTML (studio word timings)
   if (appleLyrics?.Content) {
     const isWordLevel = appleLyrics.Timing?.toLowerCase() === "word";
     console.log("[Sweetly-Main] Apple Music:", appleLyrics.Content.length, "lines, timing:", appleLyrics.Timing || "unset", "isWordLevel:", isWordLevel);
@@ -58,15 +77,6 @@ export async function fetchLyricsData(name, artist, album, playback = {}, opts =
       appleLyrics.IsCommunity = false;
       return { data: appleLyrics, provider: "apple", artworkUrl: appleArtwork };
     }
-  }
-
-  // 2. Spicy & Community TTML (Custom local -> BiniLyrics -> spicylyrics.org)
-  const customData = await safe("custom", () => getCustomLyrics(name, artist, playback.duration, opts));
-  if (customData) {
-    console.log("[Sweetly-Main] Using custom local lyrics for:", name);
-    customData.Provider = "Spicy Lyrics";
-    customData.IsCommunity = true;
-    return { data: customData, provider: "spicylyrics", artworkUrl: appleArtwork };
   }
 
   const biniLyrics = await safe("binilyrics", () => fetchBiniLyrics(name, artist));

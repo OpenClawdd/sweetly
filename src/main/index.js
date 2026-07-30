@@ -316,10 +316,16 @@ function createWindow() {
 
 app.setName("Sweetly");
 
+// app.exit(), not app.quit(). quit() is cooperative: it asks the app to close
+// its windows and returns, so module evaluation continues, whenReady still
+// fires, and the duplicate creates a window and starts the 2s osascript poll
+// before the quit ever lands. Two processes then contend for the AppleScript
+// bridge and for writes to ~/.sweetly-custom. exit() terminates here, which is
+// safe precisely because this instance has not initialised anything yet.
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
-  console.log("[Sweetly-Main] Another instance is already running. Quitting duplicate instance.");
-  app.quit();
+  console.log("[Sweetly-Main] Another instance is already running. Exiting duplicate instance.");
+  app.exit(0);
 } else {
   app.on("second-instance", () => {
     if (mainWindow) {

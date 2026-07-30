@@ -83,15 +83,19 @@ export function getCustomLyrics(name, artist, trackDuration, opts = {}) {
     // A collapsed alignment parses and renders perfectly — it just flashes the
     // whole song past in a few seconds. Treat it as absent so the pipeline
     // falls through to a source that still has usable timings.
+    // Skipped, not renamed. This check is only as good as trackDuration, which
+    // comes from a 2s AppleScript poll: on a track change the duration can still
+    // be the previous song's, so a perfectly good file gets measured against the
+    // wrong track. Renaming it to .bad turned that transient mismatch into work
+    // the user had to recover by hand — and a force-aligned file is not
+    // reproducible from anything left on disk. Skipping costs one reparse per
+    // track change and is reversible; renaming is not.
     if (!lyricsCoverTrack(parsed, trackDuration)) {
       console.log(
-        "[Sweetly-Main] Custom TTML timings collapsed, quarantining file:",
+        "[Sweetly-Main] Custom TTML timings do not cover the track, ignoring file:",
         filePath,
-        `(lines end well before ${Math.round(trackDuration)}s track)`,
+        `(${parsed.Content.length} lines against a ${Math.round(trackDuration)}s track)`,
       );
-      try {
-        fs.renameSync(filePath, filePath + ".bad");
-      } catch {}
       return null;
     }
 
