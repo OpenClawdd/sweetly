@@ -35,11 +35,28 @@ The Spicetify packaging target (`spice.config.ts`, `manifest.json`,
 is a pristine upstream clone kept for diffing. This app runs Spicy's *actual*
 renderer, not a reimplementation of it.
 
-**Never edit anything under `src/` except `main/`, `preload/` and `renderer/`.**
-Upstream stays byte-identical so `diff -r src spicy-lyrics/src` remains the
-statement of changes AGPL-3.0 requires. Every behavioural change goes in
-`src/renderer/` or in `electron.vite.config.ts`. If a fix appears to require
-editing upstream, find the host-side equivalent instead.
+**Host-side first.** Every behavioural change belongs in `src/renderer/`,
+`src/main/`, `src/preload/` or `electron.vite.config.ts`. Before editing
+anything else under `src/`, look for the module-substitution, shim or
+event-pump equivalent — that is almost always where the change belongs, and a
+host-side fix survives an upstream bump that an in-place edit does not.
+
+**Upstream edits are allowed but must earn it.** Fourteen upstream files are
+currently modified. Some cannot be done from outside: `Syllable.ts` builds the
+DOM nodes that need whitespace between them, `ApplyLyricsCredits.ts` renders
+the provenance the fetcher tags, `Mixed.css` is the stylesheet those elements
+are gated on. Others are load-bearing seams — `GetProgress.ts`, `stores.ts`,
+`PageView.ts`, `Applyer.ts`, `pako.d.ts`, the three `SettingsPanel` sections,
+`NowBar.ts`, `dynamicBackground.ts`, `ImportPackage.ts`.
+
+When you do edit upstream:
+- Keep the diff minimal and local; do not reformat or "clean up" around it.
+- Say so in the commit message, and say why the host-side route did not work.
+- `diff -r src spicy-lyrics/src` stays the statement of changes AGPL-3.0
+  requires, so it must remain readable — that is the reason for both rules
+  above, not a style preference.
+
+Run `diff -rq src spicy-lyrics/src` to see the current divergence.
 
 Licensing is documented in `NOTICE`; obligations attach on distribution, not on
 personal use. Do not reintroduce "Spicy Lyrics" as this project's identity in
