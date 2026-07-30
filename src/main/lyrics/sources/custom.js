@@ -3,7 +3,7 @@ import path from "node:path";
 import os from "node:os";
 import { customKey, customKeyCandidates, stripLyricsExt, slugify } from "../customKey.js";
 import { parseTtmlXmlToJson } from "../ttmlXml.js";
-import { lyricsCoverTrack } from "../utils.js";
+import { lyricsCoverTrack, wordTimingsUsable } from "../utils.js";
 
 const CUSTOM_DIR = path.join(os.homedir(), ".sweetly-custom");
 
@@ -95,6 +95,19 @@ export function getCustomLyrics(name, artist, trackDuration, opts = {}) {
         "[Sweetly-Main] Custom TTML timings do not cover the track, ignoring file:",
         filePath,
         `(${parsed.Content.length} lines against a ${Math.round(trackDuration)}s track)`,
+      );
+      return null;
+    }
+
+    // Spanning the track is not the same as being readable. A file whose words
+    // are mostly 0.05s flashes or whole-line blocks renders worse than the
+    // studio timings we would otherwise fall through to, so it loses its
+    // first-place slot rather than being served on the strength of being local.
+    if (!wordTimingsUsable(parsed)) {
+      console.log(
+        "[Sweetly-Main] Custom TTML word timings are degenerate, ignoring file:",
+        filePath,
+        "(regenerate it with scripts/align_lyrics.py)",
       );
       return null;
     }

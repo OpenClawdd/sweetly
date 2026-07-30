@@ -50,6 +50,72 @@ function timingStats(data) {
   return { first: Number.isFinite(first) ? first : 0, last, syllables };
 }
 
+/** Below this, a word cannot be read before it is gone. */
+const CRAMMED_WORD = 0.06;
+
+/** Above this, a single "word" is really holding a whole line. */
+const STUCK_WORD = 1.5;
+
+/** Share of bad words past which the file is not worth showing. */
+const MAX_BAD_WORD_SHARE = 0.25;
+
+/** Fewer words than this and the sample says nothing. */
+const MIN_WORD_SAMPLE = 8;
+
+/** Mean syllables per line above which a payload is really word-timed. */
+const WORD_LEVEL_RATIO = 1.3;
+
+/**
+ * Are these word timings good enough to be worth showing?
+ *
+ * `lyricsCoverTrack` asks whether the timings reach across the track. That
+ * misses the failure that actually matters: all 35 files in ~/.sweetly-custom
+ * passed it at 100% coverage while 32 were unusable, because the damage sits
+ * inside the span rather than at its ends.
+ *
+ * Both signatures come from `scripts/align_lyrics.py`. A word the aligner could
+ * not place leaves `sanitize()` at exactly the 0.05s floor and flashes past
+ * unreadably; line timings copied onto word spans leave every word holding a
+ * whole line, so nothing highlights until the line is already over.
+ * `spread_degenerate_runs` repairs only pile-ups of six or more words sharing a
+ * timestamp, so everything else reaches disk looking structurally perfect.
+ *
+ * The two checks have deliberately different scope. Nothing is readable in
+ * 60ms, so the crammed check applies to any granularity — a line-synced file
+ * whose every line lasts 0.05s is as broken as a word-timed one. A span of
+ * several seconds, on the other hand, is only wrong if it claims to be a word:
+ * it is exactly what a line looks like, so the stuck check is limited to
+ * payloads carrying more than one span per line. Judging line-synced lyrics by
+ * word rules would reject every LRCLIB result.
+ */
+export function wordTimingsUsable(data) {
+  if (!data?.Content?.length) return true;
+  if (data.Unsynced || data.Type === "Static") return true;
+
+  const durations = [];
+  let lines = 0;
+  for (const line of data.Content) {
+    lines += 1;
+    for (const group of [line?.Lead, line?.Background]) {
+      for (const syl of group?.Syllables ?? []) {
+        const start = syl?.StartTime;
+        const end = syl?.EndTime;
+        if (Number.isFinite(start) && Number.isFinite(end) && end >= start) {
+          durations.push(end - start);
+        }
+      }
+    }
+  }
+
+  if (durations.length < MIN_WORD_SAMPLE) return true;
+
+  const wordLevel = durations.length / lines >= WORD_LEVEL_RATIO;
+  const bad = durations.filter(
+    (d) => d <= CRAMMED_WORD || (wordLevel && d >= STUCK_WORD),
+  ).length;
+  return bad / durations.length <= MAX_BAD_WORD_SHARE;
+}
+
 /**
  * Do these synced lyrics actually span the track?
  *
