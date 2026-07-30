@@ -1,14 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { fetchLRCLib } from "../../src/main/lyrics/sources/lrclib.js";
-
-/**
- * LRCLIB routinely carries several entries for one release: a well-titled one
- * with only plain text, and a scrappier-titled one that actually has the LRC.
- * The scorer used to rank on metadata alone and then hard-reject the winner for
- * having no `syncedLyrics` — silently discarding a synced entry that was right
- * there. That matters more than a missed lyric: LRCLIB is the anchor source for
- * forced alignment, so a null here drops the track to the unanchored path.
- */
+import { fetchLRCLib, clearLRCLibCache } from "../../src/main/lyrics/sources/lrclib.js";
 
 const SYNCED = "[00:12.00] line one\n[00:15.50] line two\n[00:19.00] line three";
 
@@ -20,6 +11,7 @@ function mockSearch(results: unknown[]) {
 }
 
 afterEach(() => {
+  clearLRCLibCache();
   vi.unstubAllGlobals();
 });
 

@@ -85,10 +85,13 @@ export function getCustomLyrics(name, artist, trackDuration, opts = {}) {
     // falls through to a source that still has usable timings.
     if (!lyricsCoverTrack(parsed, trackDuration)) {
       console.log(
-        "[Sweetly-Main] Custom TTML timings collapsed, ignoring file:",
+        "[Sweetly-Main] Custom TTML timings collapsed, quarantining file:",
         filePath,
         `(lines end well before ${Math.round(trackDuration)}s track)`,
       );
+      try {
+        fs.renameSync(filePath, filePath + ".bad");
+      } catch {}
       return null;
     }
 

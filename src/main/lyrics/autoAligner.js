@@ -26,9 +26,8 @@ let onLyricsUpdatedCallback = null;
 let onStatusCallback = null;
 let warnedNoLoopback = false;
 
-// Capturing only makes sense from the top of a track: the aligner is given the
-// whole lyric, so the recording has to contain the whole vocal.
-const MAX_START_POSITION = 5;
+// Capturing makes sense when starting near the top of a track (within the first 30s)
+const MAX_START_POSITION = 30;
 
 export function setLyricsUpdatedListener(cb) {
   onLyricsUpdatedCallback = cb;

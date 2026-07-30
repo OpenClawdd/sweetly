@@ -1,4 +1,5 @@
 import { SEARCH_UA, parseTTMLTime } from "../utils.js";
+import { saveCustomLyrics } from "./custom.js";
 
 export async function fetchBiniLyrics(name, artist) {
   try {
@@ -20,6 +21,10 @@ export async function fetchBiniLyrics(name, artist) {
     });
     if (!ttmlRes.ok) return null;
     const ttml = await ttmlRes.text();
+
+    // Cache the downloaded word-level community TTML to disk
+    saveCustomLyrics(name, artist, ttml);
+
     const cleanTtml = ttml.replace(/\b[a-z]+(?=:)/g, "");
 
     const lines = [];

@@ -47,15 +47,35 @@ function matchTrack(results, name, artist) {
   return bestScore >= 40 ? bestMatch : null;
 }
 
+const lrclibCache = new Map();
+
+export function clearLRCLibCache() {
+  lrclibCache.clear();
+}
+
 export async function fetchLRCLib(name, artist) {
   try {
+    const cacheKey = `${name.toLowerCase()}:::${artist.toLowerCase()}`;
+    if (lrclibCache.has(cacheKey)) {
+      return lrclibCache.get(cacheKey);
+    }
+
     const q = encodeURIComponent(`${name} ${artist}`);
     const res = await fetch(`https://lrclib.net/api/search?q=${q}`, { headers: { "User-Agent": SEARCH_UA } });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      lrclibCache.set(cacheKey, null);
+      return null;
+    }
     const results = await res.json();
-    if (!results?.length) return null;
+    if (!results?.length) {
+      lrclibCache.set(cacheKey, null);
+      return null;
+    }
     const match = matchTrack(results, name, artist);
-    if (!match?.syncedLyrics) return null;
+    if (!match?.syncedLyrics) {
+      lrclibCache.set(cacheKey, null);
+      return null;
+    }
     console.log("[Sweetly-Main] LRCLIB:", match.trackName, match.artistName);
 
     const parsedLines = [];
@@ -81,7 +101,9 @@ export async function fetchLRCLib(name, artist) {
       };
     });
 
-    return lines.length > 0 ? { Content: lines, Type: "Syllable" } : null;
+    const result = lines.length > 0 ? { Content: lines, Type: "Syllable" } : null;
+    lrclibCache.set(cacheKey, result);
+    return result;
   } catch (e) {
     console.log("[Sweetly-Main] LRCLIB error:", e.message);
     return null;
