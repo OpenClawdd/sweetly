@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff3b5c"/>
+      <stop offset="1" stop-color="#8f1030"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <circle cx="512" cy="512" r="288" fill="rgba(255,255,255,0.08)"/>
+  <!-- treble-clef-like double note: two noteheads + stems + beam -->
+  <g fill="#fff">
+    <ellipse cx="352" cy="640" rx="64" ry="48" transform="rotate(-18 352 640)"/>
+    <ellipse cx="648" cy="640" rx="64" ry="48" transform="rotate(-18 648 640)"/>
+  </g>
+  <g stroke="#fff" stroke-width="40" stroke-linecap="round">
+    <line x1="400" y1="600" x2="400" y2="320"/>
+    <line x1="696" y1="600" x2="696" y2="320"/>
+  </g>
+  <path d="M400 320 q96 -48 296 -40 v56 q-176 -4 -296 40 Z" fill="#fff"/>
+</svg>

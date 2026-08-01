@@ -1,11 +1,38 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, screen, session, Menu, Tray, nativeImage } from "electron";
+import {
+  app,
+  BrowserWindow,
+  globalShortcut,
+  ipcMain,
+  screen,
+  session,
+  Menu,
+  Tray,
+  nativeImage,
+} from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { fetchAppleMusicState, pollAppleMusic, setPlayerPosition, togglePlayPause, skipToNext, skipToPrevious, toggleShuffle, cycleRepeat, toggleFavorite } from "./appleMusic.js";
-import { setMediaUserToken } from "./appleMusicApi.js";
+import {
+  fetchAppleMusicState,
+  pollAppleMusic,
+  isAutomixLikely,
+  setPlayerPosition,
+  togglePlayPause,
+  skipToNext,
+  skipToPrevious,
+  toggleShuffle,
+  cycleRepeat,
+  toggleFavorite,
+} from "./appleMusic.js";
+import { setMediaUserToken, getMediaUserToken } from "./appleMusicApi.js";
 import { fetchLyricsData } from "./lyrics/fetcher.js";
 import { saveCustomLyrics } from "./lyrics/sources/custom.js";
-import { setLyricsUpdatedListener, setAlignStatusListener, cancelAlignment, getActiveJobs } from "./lyrics/autoAligner.js";
+import {
+  setLyricsUpdatedListener,
+  setAlignStatusListener,
+  cancelAlignment,
+  getActiveJobs,
+} from "./lyrics/autoAligner.js";
+import { authorize, isSignedIn, readClientId } from "./spotifyAuth.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PRELOAD_PATH = path.join(__dirname, "../../build/preload/index.js");
@@ -23,6 +50,29 @@ let normalBounds = null;
 let lastSentStatus = null;
 let lastSentTrackKey = null;
 let lastMusicState = null;
+
+const NORMAL_POLL = 2000;
+const AUTOMIX_POLL = 300;
+
+let currentPollInterval = NORMAL_POLL;
+
+function getPollInterval(state) {
+  const track = state?.track;
+  let next = NORMAL_POLL;
+  if (track && track.duration && track.position) {
+    if (track.position >= track.duration || isAutomixLikely(track.position, track.duration)) {
+      next = AUTOMIX_POLL;
+    }
+  }
+  if (next !== currentPollInterval) {
+    console.log(
+      "[Sweetly-Main] Poll interval:",
+      next === AUTOMIX_POLL ? `${AUTOMIX_POLL}ms (automix)` : `${NORMAL_POLL}ms`
+    );
+    currentPollInterval = next;
+  }
+  return next;
+}
 
 function updateTrayMenu(state) {
   if (!tray) return;
@@ -83,7 +133,12 @@ function safeSend(channel, data) {
       return false;
     }
     wc.send(channel, data);
-    console.log("[Sweetly-Main] safeSend OK:", channel, data?.status, data?.track?.name || "(no track)");
+    console.log(
+      "[Sweetly-Main] safeSend OK:",
+      channel,
+      data?.status,
+      data?.track?.name || "(no track)"
+    );
     return true;
   } catch (e) {
     console.error("[Sweetly-Main] safeSend ERROR:", channel, e.message);
@@ -110,10 +165,13 @@ function onMusicState(state) {
   const trackKey = track ? `${track.nameCleaned}|||${track.artistCleaned}` : null;
   const status = state.status;
 
-  const wouldSkip = (status !== "playing" && status === lastSentStatus && trackKey === lastSentTrackKey);
+  const wouldSkip =
+    status !== "playing" && status === lastSentStatus && trackKey === lastSentTrackKey;
 
   if (pollCount <= 3 || pollCount % 20 === 0) {
-    console.log(`[Sweetly-Main] Poll #${pollCount}: status=${status} track="${track?.name || ""}" pos=${track?.position} skip=${wouldSkip}`);
+    console.log(
+      `[Sweetly-Main] Poll #${pollCount}: status=${status} track="${track?.name || ""}" pos=${track?.position} skip=${wouldSkip}`
+    );
   }
 
   updateTrayMenu(state);
@@ -186,61 +244,61 @@ function createWindow() {
   });
 
   // Native macOS Application Menu
-  if (process.platform === 'darwin') {
+  if (process.platform === "darwin") {
     const template = [
       {
         label: "Sweetly",
         submenu: [
-          { role: 'about', label: 'About Sweetly' },
-          { type: 'separator' },
-          { role: 'services' },
-          { type: 'separator' },
-          { role: 'hide', label: 'Hide Sweetly' },
-          { role: 'hideOthers' },
-          { role: 'unhide' },
-          { type: 'separator' },
-          { role: 'quit', label: 'Quit Sweetly' }
-        ]
+          { role: "about", label: "About Sweetly" },
+          { type: "separator" },
+          { role: "services" },
+          { type: "separator" },
+          { role: "hide", label: "Hide Sweetly" },
+          { role: "hideOthers" },
+          { role: "unhide" },
+          { type: "separator" },
+          { role: "quit", label: "Quit Sweetly" },
+        ],
       },
       {
-        label: 'Edit',
+        label: "Edit",
         submenu: [
-          { role: 'undo' },
-          { role: 'redo' },
-          { type: 'separator' },
-          { role: 'cut' },
-          { role: 'copy' },
-          { role: 'paste' },
-          { role: 'pasteAndMatchStyle' },
-          { role: 'delete' },
-          { role: 'selectAll' }
-        ]
+          { role: "undo" },
+          { role: "redo" },
+          { type: "separator" },
+          { role: "cut" },
+          { role: "copy" },
+          { role: "paste" },
+          { role: "pasteAndMatchStyle" },
+          { role: "delete" },
+          { role: "selectAll" },
+        ],
       },
       {
-        label: 'View',
+        label: "View",
         submenu: [
-          { role: 'reload' },
-          { role: 'forceReload' },
-          { role: 'toggleDevTools' },
-          { type: 'separator' },
-          { role: 'resetZoom' },
-          { role: 'zoomIn' },
-          { role: 'zoomOut' },
-          { type: 'separator' },
-          { role: 'togglefullscreen' }
-        ]
+          { role: "reload" },
+          { role: "forceReload" },
+          { role: "toggleDevTools" },
+          { type: "separator" },
+          { role: "resetZoom" },
+          { role: "zoomIn" },
+          { role: "zoomOut" },
+          { type: "separator" },
+          { role: "togglefullscreen" },
+        ],
       },
       {
-        label: 'Window',
+        label: "Window",
         submenu: [
-          { role: 'minimize' },
-          { role: 'zoom' },
-          { type: 'separator' },
-          { role: 'front' },
-          { type: 'separator' },
-          { role: 'window' }
-        ]
-      }
+          { role: "minimize" },
+          { role: "zoom" },
+          { type: "separator" },
+          { role: "front" },
+          { type: "separator" },
+          { role: "window" },
+        ],
+      },
     ];
     Menu.setApplicationMenu(Menu.buildFromTemplate(template));
   }
@@ -253,8 +311,8 @@ function createWindow() {
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnAllWorkspaces: true });
 
   mainWindow.webContents.once("dom-ready", () => {
-    console.log("[Sweetly-Main] DOM ready, starting Apple Music poll every 2000ms");
-    stopPoll = pollAppleMusic(2000, onMusicState);
+    console.log("[Sweetly-Main] DOM ready, starting Apple Music poll every", NORMAL_POLL, "ms");
+    stopPoll = pollAppleMusic(NORMAL_POLL, onMusicState, getPollInterval);
   });
 
   let resizeTimer = null;
@@ -298,7 +356,8 @@ function createWindow() {
     mainWindow = null;
   });
 
-  const devServerUrl = process.env.VITE_DEV_SERVER_URL || (!app.isPackaged ? "http://localhost:5173" : null);
+  const devServerUrl =
+    process.env.VITE_DEV_SERVER_URL || (!app.isPackaged ? "http://localhost:5173" : null);
   if (devServerUrl) {
     console.log("[Sweetly-Main] Loading dev server URL:", devServerUrl);
     mainWindow.loadURL(devServerUrl);
@@ -394,7 +453,10 @@ app.on("window-all-closed", () => {
   // until the job finishes and then exit on its own.
   const jobs = getActiveJobs();
   if (jobs.length > 0) {
-    console.log(`[Sweetly-Main] Window closed but ${jobs.length} alignment job(s) running — finishing first:`, jobs.join(", "));
+    console.log(
+      `[Sweetly-Main] Window closed but ${jobs.length} alignment job(s) running — finishing first:`,
+      jobs.join(", ")
+    );
     const timer = setInterval(() => {
       if (getActiveJobs().length === 0) {
         clearInterval(timer);
@@ -454,7 +516,10 @@ ipcMain.handle("fetch-lyrics", async (_event, { name, artist, album, forceWordLe
     artworkUrl: lastMusicState?.track?.artworkUrl,
   };
   const result = await fetchLyricsData(name, artist, album, playback, { forceWordLevel });
-  console.log("[Sweetly-Main] fetch-lyrics: result=", result ? `data=${!!result.data} art=${!!result.artworkUrl}` : "null");
+  console.log(
+    "[Sweetly-Main] fetch-lyrics: result=",
+    result ? `data=${!!result.data} art=${!!result.artworkUrl}` : "null"
+  );
   return result;
 });
 
@@ -463,6 +528,35 @@ ipcMain.handle("set-media-user-token", async (_event, token) => {
   const ok = setMediaUserToken(token);
   console.log("[Sweetly-Main] set-media-user-token:", ok ? "saved" : "failed (empty token)");
   return ok;
+});
+
+// The renderer's setup screen asks this on mount to decide which sections to
+// show as "needs attention" vs "configured".
+ipcMain.handle("get-setup-status", async () => {
+  const hasMediaUserToken = Boolean(getMediaUserToken());
+  const spotifySignedIn = await isSignedIn();
+  const spotifyClientId = await readClientId();
+  console.log("[Sweetly-Main] IPC: get-setup-status:", { hasMediaUserToken, spotifySignedIn });
+  return {
+    hasMediaUserToken,
+    // A token can be stored with no client id to refresh it — that means the
+    // credential is present but unusable. Report it as needing setup.
+    spotifySignedIn: spotifySignedIn && Boolean(spotifyClientId),
+    spotifyClientIdConfigured: Boolean(spotifyClientId),
+  };
+});
+
+// Kick off the interactive Spotify consent flow from the setup screen.
+ipcMain.handle("spotify-sign-in", async () => {
+  console.log("[Sweetly-Main] IPC: spotify-sign-in");
+  try {
+    const record = await authorize();
+    console.log("[Sweetly-Main] spotify-sign-in: signed in");
+    return { ok: true, hasAccessToken: Boolean(record.accessToken) };
+  } catch (e) {
+    console.log("[Sweetly-Main] spotify-sign-in failed:", e.message);
+    return { ok: false, error: e.message };
+  }
 });
 
 ipcMain.handle("save-custom-lyrics", async (_event, { name, artist, ttml }) => {

@@ -42,9 +42,9 @@ and lyrics-application code substantially unmodified, and changes the following:
     This work stores it on the filesystem under ~/.sweetly-custom/ so that the
     alignment pipeline and the user interface share a single location.
 
-Files under src/ other than main/, preload/ and renderer/ are upstream Spicy
-Lyrics code, kept diffable against the tracking clone in spicy-lyrics/ so that
-modifications remain visible via `diff -r`.
+Files under `src/` other than `main/`, `preload/` and `renderer/` are upstream
+Spicy Lyrics code. Modifications are kept minimal and local so they remain
+visible via `diff` against the upstream repository.
 
 This project is not affiliated with or endorsed by Spikerko, Spicy Lyrics, or
 Apple Inc. "Spicy Lyrics" is the name of the upstream project and is not used

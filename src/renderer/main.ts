@@ -96,6 +96,11 @@ function trackKey(): string | null {
 }
 
 async function start(): Promise<void> {
+  // First-run gate. Shows a setup screen instead of the lyrics UI when the
+  // Apple Music media-user-token is missing, then reloads once it's saved.
+  const { ensureSetup } = await import("./setup/setupGate.ts");
+  await ensureSetup();
+
   // One dynamic import of the barrel, not several in parallel — see upstream.ts
   // for why the evaluation order matters.
   const upstream = await import("./upstream.ts");

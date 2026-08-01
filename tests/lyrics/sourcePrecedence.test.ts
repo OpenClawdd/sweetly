@@ -53,7 +53,7 @@ describe("provider precedence", () => {
     getCustomLyrics.mockResolvedValue(lyrics("word"));
     findAppleMusicLyrics.mockResolvedValue({ lyrics: lyrics("word"), artworkUrl: "art" });
 
-    const result = await fetchLyricsData("Song", "Artist", "Album", {});
+    const result = await fetchLyricsData("Song One", "Artist", "Album", {});
 
     expect(result.provider).toBe("spicylyrics");
     expect(result.data.IsCommunity).toBe(true);
@@ -63,7 +63,7 @@ describe("provider precedence", () => {
     getCustomLyrics.mockResolvedValue(null);
     findAppleMusicLyrics.mockResolvedValue({ lyrics: lyrics("word"), artworkUrl: "art" });
 
-    const result = await fetchLyricsData("Song", "Artist", "Album", {});
+    const result = await fetchLyricsData("Song Two", "Artist", "Album", {});
 
     expect(result.provider).toBe("apple");
     expect(result.data.Provider).toBe("Apple Music");
@@ -74,7 +74,7 @@ describe("provider precedence", () => {
     findAppleMusicLyrics.mockResolvedValue({ lyrics: lyrics("line"), artworkUrl: null });
     fetchBiniLyrics.mockResolvedValue(lyrics("word"));
 
-    const result = await fetchLyricsData("Song", "Artist", "Album", {});
+    const result = await fetchLyricsData("Song Three", "Artist", "Album", {});
 
     expect(result.provider).toBe("spicylyrics");
   });
@@ -83,7 +83,7 @@ describe("provider precedence", () => {
     getCustomLyrics.mockResolvedValue(lyrics("word"));
     findAppleMusicLyrics.mockRejectedValue(new Error("no media-user-token"));
 
-    const result = await fetchLyricsData("Song", "Artist", "Album", {});
+    const result = await fetchLyricsData("Song Four", "Artist", "Album", {});
 
     expect(result.provider).toBe("spicylyrics");
   });

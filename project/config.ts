@@ -1,2 +1,2 @@
-export const ProjectName = "spicy-lyrics";
-export const ProjectVersion = "6.2.3";
+export const ProjectName = "sweetly-lyrics-overlay";
+export const ProjectVersion = "0.1.0";

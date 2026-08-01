@@ -5,13 +5,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev            # Electron window + Vite HMR (sets ELECTRON_DISABLE_SANDBOX=1)
-npm run build          # main/preload/renderer → build/
-npm test               # vitest run
-npm run test:watch     # vitest watch
+bun run dev            # Electron window + Vite HMR (sets ELECTRON_DISABLE_SANDBOX=1)
+bun run build          # main/preload/renderer → build/
+bun run dist:mac       # build + electron-builder → dist/*.dmg
+bun test               # vitest run
+bun run test:watch     # vitest watch
 
-npx vitest run tests/adapter/musicState.test.ts        # single file
-npx vitest run -t "converts duration from seconds"     # single test by name
+bunx vitest run tests/adapter/musicState.test.ts        # single file
+bunx vitest run -t "converts duration from seconds"     # single test by name
 ```
 
 `ELECTRON_DISABLE_SANDBOX=1` is required for the AppleScript bridge even though
@@ -21,19 +22,13 @@ var covers the preload sandbox during dev.
 `oxlint` / `oxfmt` are configured (`.oxlintrc.json`, `.oxfmtrc.json`) but have no
 npm scripts: run `npx oxlint` / `npx oxfmt` directly.
 
-**Use npm, not bun.** `.cursor/rules/use-bun-instead-of-node-vite-npm-pnpm.mdc`
-says to prefer bun, but bun is not installed on this machine and the repo carries
-a `package-lock.json`. The `bun.lock` at the root came from upstream. Tests are
-vitest, not `bun test`.
-
-The Spicetify packaging target (`spice.config.ts`, `manifest.json`,
-`builds/spicy-lyrics.mjs`) is inherited from upstream and not actively developed.
+**Use bun.** The repo carries a `bun.lock`; install with `bun install`. Tests are
+vitest, run via `bun test`.
 
 ## The critical invariant: `src/` is a vendored AGPL fork
 
-`src/` is a copy of **Spicy Lyrics 6.2.3** (AGPL-3.0, by Spikerko). `spicy-lyrics/`
-is a pristine upstream clone kept for diffing. This app runs Spicy's *actual*
-renderer, not a reimplementation of it.
+`src/` is a copy of **Spicy Lyrics 6.2.3** (AGPL-3.0, by Spikerko). This app runs
+Spicy's *actual* renderer, not a reimplementation of it.
 
 **Host-side first.** Every behavioural change belongs in `src/renderer/`,
 `src/main/`, `src/preload/` or `electron.vite.config.ts`. Before editing
@@ -41,7 +36,7 @@ anything else under `src/`, look for the module-substitution, shim or
 event-pump equivalent — that is almost always where the change belongs, and a
 host-side fix survives an upstream bump that an in-place edit does not.
 
-**Upstream edits are allowed but must earn it.** Fourteen upstream files are
+**Upstream edits are allowed but must earn it.** A handful of upstream files are
 currently modified. Some cannot be done from outside: `Syllable.ts` builds the
 DOM nodes that need whitespace between them, `ApplyLyricsCredits.ts` renders
 the provenance the fetcher tags, `Mixed.css` is the stylesheet those elements
@@ -52,16 +47,10 @@ are gated on. Others are load-bearing seams — `GetProgress.ts`, `stores.ts`,
 When you do edit upstream:
 - Keep the diff minimal and local; do not reformat or "clean up" around it.
 - Say so in the commit message, and say why the host-side route did not work.
-- `diff -r src spicy-lyrics/src` stays the statement of changes AGPL-3.0
-  requires, so it must remain readable — that is the reason for both rules
-  above, not a style preference.
-
-Run `diff -rq src spicy-lyrics/src` to see the current divergence.
 
 Licensing is documented in `NOTICE`; obligations attach on distribution, not on
 personal use. Do not reintroduce "Spicy Lyrics" as this project's identity in
-`README.md`, `manifest.json`, or window titles — a copyright licence is not a
-trademark licence.
+`README.md` or window titles — a copyright licence is not a trademark licence.
 
 ## How Spicy's renderer is hosted
 
@@ -147,6 +136,19 @@ Custom TTML lives in `~/.sweetly-custom/*.ttml`, fuzzy-matched by
 `main/lyrics/customKey.js`. `scripts/align_lyrics.py` generates word-level timings
 (prefers Qwen3-ForcedAligner when given `--lyrics`, falls back to WhisperX ASR).
 
+The in-memory LRU lyrics cache in `fetcher.js` is keyed by `name|||artist`. Tests
+that exercise `fetchLyricsData` with the same track twice must use distinct track
+names per test or the second call returns a cache hit.
+
+## Setup gate (first run)
+
+`renderer/setup/setupGate.ts` mounts a plain-DOM screen over `#app` before the
+Spicy UI boots whenever `get-setup-status` reports no media-user-token. It must
+stay free of Spicy imports (it renders before the UI and its stylesheets exist).
+Saving a token reloads the window; skipping persists to `localStorage`. The
+optional Spotify section drives `spotify-sign-in` IPC → `authorize()` in
+`main/spotifyAuth.js` (PKCE loopback on port 8888).
+
 ## Conventions
 
 - Renderer never makes network requests directly — everything routes through the
@@ -172,11 +174,7 @@ Custom TTML lives in `~/.sweetly-custom/*.ttml`, fuzzy-matched by
 
 ## Known state
 
-- `renderer/App.jsx`, `renderer/animationEngine.js`, `renderer/index.jsx`,
-  `utils/ttmlParser.js` and the empty `src/Lyrics/` are **dead** — superseded by
-  the Spicy renderer but not yet deleted. `index.html` loads `main.ts`.
 - **Romanization is broken**: `pkgs.spikerko.org` serves the engines (Kuromoji,
   pinyin, aromanize, GreekRomanization) without CORS headers, so they fail to load
   from the renderer. The fix is proxying them through the main process, per the
   rule above that the renderer makes no direct network requests.
-- Design spec and implementation plan live in `docs/superpowers/`.

@@ -213,12 +213,30 @@ export async function fetchAppleMusicState() {
   }
 }
 
-export function pollAppleMusic(intervalMs, onState) {
-  const timer = setInterval(async () => {
+const AUTOMIX_THRESHOLD = 5;
+
+export function isAutomixLikely(position, duration, threshold = AUTOMIX_THRESHOLD) {
+  return duration > 0 && position > 0 && position >= duration - threshold;
+}
+
+export function pollAppleMusic(intervalMs, onState, getNextInterval) {
+  let stopped = false;
+  let timer;
+
+  const tick = async () => {
+    if (stopped) return;
     const state = await fetchAppleMusicState();
     onState(state);
-  }, intervalMs);
-  return () => clearInterval(timer);
+    if (stopped) return;
+    const next = getNextInterval ? getNextInterval(state) : intervalMs;
+    timer = setTimeout(tick, next);
+  };
+
+  timer = setTimeout(tick, intervalMs);
+  return () => {
+    stopped = true;
+    clearTimeout(timer);
+  };
 }
 
 /**

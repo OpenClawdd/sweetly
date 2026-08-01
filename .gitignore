@@ -176,8 +176,27 @@ src/components/cli-sync
 
 .claude/settings.local.json
 
+# Personal AI tooling & skills — not part of the published app
+.agents/
+.claude/
+.cursor/
+.remember/
+skills-lock.json
+
+# Legacy Spicetify packaging target (removed upstream of this repo)
+spicy-lyrics/
+spice.config.ts
+manifest.json
+builds/
+
+# Packaging output
+dist/
+*.dmg
+
 CHANGELOG.md
 .sweetly-token
+.sweetly-spotify-token
+.sweetly-spotify
 
 # Python bytecode from scripts/
 __pycache__/
