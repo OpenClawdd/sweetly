@@ -31,9 +31,7 @@ let evaluating = false;
 let evaluateAgain = false;
 
 const getNPV = (): HTMLElement | null =>
-  document.querySelector<HTMLElement>(
-    ".Root__right-sidebar aside.NowPlayingView"
-  ) ??
+  document.querySelector<HTMLElement>(".Root__right-sidebar aside.NowPlayingView") ??
   document.querySelector<HTMLElement>(
     ".Root__right-sidebar aside#Desktop_PanelContainer_Id:has(.main-nowPlayingView-coverArtContainer)"
   );
@@ -128,17 +126,12 @@ const STATE_ANIM_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 // synchronously here; the follow-up debounced evaluate re-runs refreshCardUI
 // idempotently, so nothing jumps afterwards.
 function animateStateChange(mutate: () => void): void {
-  if (
-    !cardEl ||
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  ) {
+  if (!cardEl || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
     mutate();
     return;
   }
   const card = cardEl;
-  const buttons = Array.from(
-    card.querySelectorAll<HTMLElement>(".CardControl")
-  );
+  const buttons = Array.from(card.querySelectorAll<HTMLElement>(".CardControl"));
   const firstCard = card.getBoundingClientRect();
   const firstButtons = buttons.map((b) => b.getBoundingClientRect());
 
@@ -170,10 +163,10 @@ function animateStateChange(mutate: () => void): void {
     const dx = first.left - last.left;
     const dy = first.top - last.top;
     if (dx === 0 && dy === 0) return;
-    button.animate(
-      [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }],
-      { duration: STATE_ANIM_MS, easing: STATE_ANIM_EASE }
-    );
+    button.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], {
+      duration: STATE_ANIM_MS,
+      easing: STATE_ANIM_EASE,
+    });
   });
 }
 
@@ -200,11 +193,7 @@ function refreshCardUI(): void {
     const maximize = cardEl.querySelector<HTMLElement>("#NPVCardMaximize");
     if (maximize) {
       maximize.innerHTML = expanded ? Icons.Minimize : Icons.Maximize;
-      setTooltip(
-        maximize,
-        expanded ? "Exit Expanded" : "Expand Lyrics",
-        "maximize-tip"
-      );
+      setTooltip(maximize, expanded ? "Exit Expanded" : "Expand Lyrics", "maximize-tip");
     }
   }
 }
@@ -278,11 +267,7 @@ async function reconcile(): Promise<void> {
   }
 
   const desired = desiredState();
-  const current: CardState = !cardEl
-    ? "DORMANT"
-    : cardOwnsPage
-      ? "ACTIVE"
-      : "SHELL";
+  const current: CardState = !cardEl ? "DORMANT" : cardOwnsPage ? "ACTIVE" : "SHELL";
 
   if (desired === current) {
     if (cardEl) refreshCardUI();
@@ -378,8 +363,7 @@ function attachWatchers(): void {
   // Spotify swaps the sidebar element itself (e.g. for cinema view) — watch
   // its parent and re-attach the sidebar observer when that happens.
   const topContainer = document.querySelector(".Root__top-container");
-  const watchRoot =
-    topContainer ?? document.querySelector(".Root") ?? document.body;
+  const watchRoot = topContainer ?? document.querySelector(".Root") ?? document.body;
   const topObserver = new MutationObserver(() => {
     if (!observedSidebar || !observedSidebar.isConnected) {
       observedSidebar = null;
@@ -414,9 +398,7 @@ export function initNPVLyrics(): void {
   watcherMaid.Give($npvLyricsExpanded.listen(() => scheduleEvaluate()));
 
   Whentil.When(
-    () =>
-      document.querySelector(".Root__right-sidebar") ??
-      document.querySelector(".Root"),
+    () => document.querySelector(".Root__right-sidebar") ?? document.querySelector(".Root"),
     () => {
       attachWatchers();
     }

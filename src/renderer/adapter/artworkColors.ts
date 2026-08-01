@@ -26,7 +26,11 @@ const cache = new Map<string, ExtractedColors>();
 
 function toHex(r: number, g: number, b: number): string {
   return `#${[r, g, b]
-    .map((value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0"))
+    .map((value) =>
+      Math.max(0, Math.min(255, Math.round(value)))
+        .toString(16)
+        .padStart(2, "0")
+    )
     .join("")}`;
 }
 

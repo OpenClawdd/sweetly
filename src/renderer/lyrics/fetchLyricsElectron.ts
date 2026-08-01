@@ -64,9 +64,11 @@ function expandSyllablesInLyrics(data: Record<string, any>): Record<string, any>
           const words = s.Text.trim().split(/\s+/).filter(Boolean);
           const duration = s.EndTime > s.StartTime ? s.EndTime - s.StartTime : 0;
           words.forEach((w: string, wi: number) => {
-            const wIsLast = s.IsPartOfWord ? (wi === words.length - 1) : false;
-            const wStart = duration > 0 ? s.StartTime + (wi / words.length) * duration : s.StartTime;
-            const wEnd = duration > 0 ? s.StartTime + ((wi + 1) / words.length) * duration : s.EndTime;
+            const wIsLast = s.IsPartOfWord ? wi === words.length - 1 : false;
+            const wStart =
+              duration > 0 ? s.StartTime + (wi / words.length) * duration : s.StartTime;
+            const wEnd =
+              duration > 0 ? s.StartTime + ((wi + 1) / words.length) * duration : s.EndTime;
             newSyllables.push({
               Text: w,
               StartTime: wStart,
@@ -172,8 +174,8 @@ function extractParenthesesBackgrounds(item: any): any {
     const existingBg = Array.isArray(item.Background)
       ? item.Background
       : item.Background
-      ? [item.Background]
-      : [];
+        ? [item.Background]
+        : [];
     return {
       ...item,
       Lead: { ...item.Lead, Syllables: leadSyllables },
@@ -234,7 +236,10 @@ export function normaliseLyricsResponse(response: unknown): LyricsResult {
   }
 
   if (typeof data === "object" && typeof data.Type === "string") {
-    return [withStaticLines(withArrayBackgrounds(withStartTime(expandSyllablesInLyrics(data)))), 200];
+    return [
+      withStaticLines(withArrayBackgrounds(withStartTime(expandSyllablesInLyrics(data)))),
+      200,
+    ];
   }
 
   return ["unknown-error", 500];
@@ -284,7 +289,7 @@ export async function fetchLyricsForCurrentTrack(): Promise<LyricsResult> {
         ? content
         : `${content.Type} (${
             (content as any).Content?.length ?? (content as any).Lines?.length ?? 0
-          } lines) via ${response?.provider}`,
+          } lines) via ${response?.provider}`
     );
     return result;
   } catch (error) {

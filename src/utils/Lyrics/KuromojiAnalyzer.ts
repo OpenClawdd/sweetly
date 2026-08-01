@@ -1,8 +1,7 @@
 // deno-lint-ignore-file no-async-promise-executor no-explicit-any
 import { RetrievePackage } from "../ImportPackage.ts";
 
-RetrievePackage("Kuromoji", "1.0.0", "js")
-  .catch(() => {});
+RetrievePackage("Kuromoji", "1.0.0", "js").catch(() => {});
 
 let Analyzer: any;
 export const init = (): Promise<void> => {
@@ -15,16 +14,18 @@ export const init = (): Promise<void> => {
     while (!(window as any).kuromoji) {
       await new Promise((r) => setTimeout(r, 50));
     }
-    (window as any).kuromoji.builder({
-      dicPath: "https://kuromoji.pkgs.spikerko.org",
-    }).build((error: any, analyzer: any) => {
-      if (error) {
-        return reject(error);
-      }
+    (window as any).kuromoji
+      .builder({
+        dicPath: "https://kuromoji.pkgs.spikerko.org",
+      })
+      .build((error: any, analyzer: any) => {
+        if (error) {
+          return reject(error);
+        }
 
-      Analyzer = analyzer;
-      resolve();
-    });
+        Analyzer = analyzer;
+        resolve();
+      });
   });
 };
 export const parse = (text = ""): Promise<any> => {

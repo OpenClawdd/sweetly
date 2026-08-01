@@ -35,11 +35,7 @@ import "tippy.js/dist/tippy.css";
 import "./styles/punch.css";
 
 import { installSpicetifyShim } from "./adapter/spicetifyShim.ts";
-import {
-  subscribeMusicState,
-  onMusicStateChange,
-  getMusicState,
-} from "./adapter/musicState.ts";
+import { subscribeMusicState, onMusicStateChange, getMusicState } from "./adapter/musicState.ts";
 import { setProgressProvider } from "./adapter/AppleMusicPlayer.ts";
 
 let lastPositionMs = 0;
@@ -192,10 +188,14 @@ async function start(): Promise<void> {
   // neither, leaving NowBar's progress bar frozen at 0:00 and
   // dynamicBackground's artwork crossfade dead. See adapter/eventPump.ts.
   console.log(
-    "[Sweetly] diag: Global bus:", typeof upstream.Global?.Event?.evoke,
-    "| .ViewControl count:", document.querySelectorAll(".ViewControl").length,
-    "| control ids:", [...document.querySelectorAll(".ViewControl")].map((e) => e.id).join(","),
-    "| Fullscreen.IsOpen:", (upstream.Fullscreen as any)?.IsOpen,
+    "[Sweetly] diag: Global bus:",
+    typeof upstream.Global?.Event?.evoke,
+    "| .ViewControl count:",
+    document.querySelectorAll(".ViewControl").length,
+    "| control ids:",
+    [...document.querySelectorAll(".ViewControl")].map((e) => e.id).join(","),
+    "| Fullscreen.IsOpen:",
+    (upstream.Fullscreen as any)?.IsOpen
   );
 
   let diagTicks = 0;
@@ -212,7 +212,14 @@ async function start(): Promise<void> {
   });
   new IntervalManager(0.5, () => {
     if (diagTicks < 3) {
-      console.log("[Sweetly] diag: pump tick", diagTicks, "pos:", GetProgress(), "uri:", trackKey());
+      console.log(
+        "[Sweetly] diag: pump tick",
+        diagTicks,
+        "pos:",
+        GetProgress(),
+        "uri:",
+        trackKey()
+      );
     }
     diagTicks += 1;
     pump.tick();
@@ -233,7 +240,10 @@ async function start(): Promise<void> {
       return;
     }
 
-    const contentBox = document.querySelector<HTMLElement>("#SpicyLyricsPage .ContentBox") || document.querySelector<HTMLElement>(".ContentBox") || document.body;
+    const contentBox =
+      document.querySelector<HTMLElement>("#SpicyLyricsPage .ContentBox") ||
+      document.querySelector<HTMLElement>(".ContentBox") ||
+      document.body;
     if (contentBox) void ApplyDynamicBackground(contentBox, "lpagebg");
 
     // Upstream's fetchLyrics.ts does this in presentLyrics() (line 38-48) —
@@ -257,19 +267,27 @@ async function start(): Promise<void> {
     $currentlyFetching.set(false);
 
     console.log(
-      "[Sweetly] diag: applying:", requestedFor,
-      "| descriptor:", typeof content === "string" ? content : `Type=${(content as any)?.Type}`,
-      "| Unsynced:", (content as any)?.Unsynced,
-      "| containerExists:", upstream.$lyricsContainerExists.get(),
-      "| PageContainer:", !!upstream.PageContainer,
+      "[Sweetly] diag: applying:",
+      requestedFor,
+      "| descriptor:",
+      typeof content === "string" ? content : `Type=${(content as any)?.Type}`,
+      "| Unsynced:",
+      (content as any)?.Unsynced,
+      "| containerExists:",
+      upstream.$lyricsContainerExists.get(),
+      "| PageContainer:",
+      !!upstream.PageContainer
     );
 
     try {
       await ApplyLyrics(result as any);
       console.log(
-        "[Sweetly] diag: applied OK:", requestedFor,
-        "| containerExists now:", upstream.$lyricsContainerExists.get(),
-        "| .line count:", document.querySelectorAll(".LyricsContent .line").length,
+        "[Sweetly] diag: applied OK:",
+        requestedFor,
+        "| containerExists now:",
+        upstream.$lyricsContainerExists.get(),
+        "| .line count:",
+        document.querySelectorAll(".LyricsContent .line").length
       );
     } catch (err) {
       // Previously `void loadLyricsForCurrentTrack()` swallowed this entirely,

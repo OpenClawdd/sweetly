@@ -72,15 +72,17 @@ export function parseTTMLTime(value: string | null | undefined): number {
 const TTM_NS = "http://www.w3.org/ns/ttml#metadata";
 
 function isBackground(span: Element): boolean {
-  return (
-    span.getAttribute("ttm:role") === "x-bg" ||
-    span.getAttributeNS(TTM_NS, "role") === "x-bg"
-  );
+  return span.getAttribute("ttm:role") === "x-bg" || span.getAttributeNS(TTM_NS, "role") === "x-bg";
 }
 
 function isOpposite(p: Element): boolean {
-  const agent = p.getAttribute("ttm:agent") || p.getAttributeNS(TTM_NS, "agent") || p.getAttribute("agent") || "";
-  const role = p.getAttribute("ttm:role") || p.getAttributeNS(TTM_NS, "role") || p.getAttribute("role") || "";
+  const agent =
+    p.getAttribute("ttm:agent") ||
+    p.getAttributeNS(TTM_NS, "agent") ||
+    p.getAttribute("agent") ||
+    "";
+  const role =
+    p.getAttribute("ttm:role") || p.getAttributeNS(TTM_NS, "role") || p.getAttribute("role") || "";
   return agent === "v2" || role === "x-opposite" || /v[2-9]/.test(agent);
 }
 
@@ -91,7 +93,7 @@ function isOpposite(p: Element): boolean {
  */
 function collectSyllables(container: Element): Syllable[] {
   const spans = Array.from(container.children).filter(
-    (child) => child.tagName.toLowerCase() === "span" && !isBackground(child),
+    (child) => child.tagName.toLowerCase() === "span" && !isBackground(child)
   );
 
   return spans
@@ -124,8 +126,10 @@ function collectSyllables(container: Element): Syllable[] {
         return words.map((w, wi) => {
           const wIsLast = isLast && wi === words.length - 1;
           const wIsPartOfWord = !wIsLast && (wi < words.length - 1 ? false : isPartOfWord);
-          const wStart = duration > 0 ? startTime + Math.round((wi / words.length) * duration) : startTime;
-          const wEnd = duration > 0 ? startTime + Math.round(((wi + 1) / words.length) * duration) : endTime;
+          const wStart =
+            duration > 0 ? startTime + Math.round((wi / words.length) * duration) : startTime;
+          const wEnd =
+            duration > 0 ? startTime + Math.round(((wi + 1) / words.length) * duration) : endTime;
           return {
             Text: w,
             StartTime: wStart,
@@ -160,7 +164,7 @@ export function parseLocalTTML(ttml: string): SpicyLyrics | null {
   if (paragraphs.length === 0) return null;
 
   const hasTimedSpans = paragraphs.some((p) =>
-    Array.from(p.getElementsByTagName("span")).some((span) => span.hasAttribute("begin")),
+    Array.from(p.getElementsByTagName("span")).some((span) => span.hasAttribute("begin"))
   );
 
   if (hasTimedSpans) {

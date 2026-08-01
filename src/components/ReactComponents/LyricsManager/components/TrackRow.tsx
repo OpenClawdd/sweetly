@@ -31,7 +31,15 @@ type TrackRowProps = {
   onDelete: () => void;
 };
 
-export function TrackRow({ uri, track, loading, isCurrentlyPlaying, onPlay, onDownload, onDelete }: TrackRowProps) {
+export function TrackRow({
+  uri,
+  track,
+  loading,
+  isCurrentlyPlaying,
+  onPlay,
+  onDownload,
+  onDelete,
+}: TrackRowProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   function handleDeleteClick() {
@@ -59,7 +67,9 @@ export function TrackRow({ uri, track, loading, isCurrentlyPlaying, onPlay, onDo
 
   const title = track?.name ?? uri;
   const artists = track ? track.artists.map((a) => a.name).join(", ") : "";
-  const coverUrl = track ? pickCoverUrl(track) : "https://images.spikerko.org/SongPlaceholderFull.png";
+  const coverUrl = track
+    ? pickCoverUrl(track)
+    : "https://images.spikerko.org/SongPlaceholderFull.png";
 
   return (
     <div className={`sl-ldb-row${isCurrentlyPlaying ? " sl-ldb-row--playing" : ""}`}>
@@ -71,7 +81,8 @@ export function TrackRow({ uri, track, loading, isCurrentlyPlaying, onPlay, onDo
         height={40}
         loading="lazy"
         onError={(e) => {
-          (e.currentTarget as HTMLImageElement).src = "https://images.spikerko.org/SongPlaceholderFull.png";
+          (e.currentTarget as HTMLImageElement).src =
+            "https://images.spikerko.org/SongPlaceholderFull.png";
         }}
       />
       <div className="sl-ldb-row__info">
@@ -84,13 +95,24 @@ export function TrackRow({ uri, track, loading, isCurrentlyPlaying, onPlay, onDo
               title="Currently playing"
             />
           )}
-          <span className="sl-ldb-row__title" title={title}>{title}</span>
+          <span className="sl-ldb-row__title" title={title}>
+            {title}
+          </span>
         </div>
-        {artists && <span className="sl-ldb-row__artists" title={artists}>{artists}</span>}
+        {artists && (
+          <span className="sl-ldb-row__artists" title={artists}>
+            {artists}
+          </span>
+        )}
       </div>
       <div className="sl-ldb-row__actions">
         <IconButton icon={<PlayIcon size={14} />} onClick={onPlay} title="Play" variant="default" />
-        <IconButton icon={<DownloadIcon size={14} />} onClick={onDownload} title="Download TTML" variant="default" />
+        <IconButton
+          icon={<DownloadIcon size={14} />}
+          onClick={onDownload}
+          title="Download TTML"
+          variant="default"
+        />
         <IconButton
           icon={<TrashIcon size={14} />}
           onClick={handleDeleteClick}

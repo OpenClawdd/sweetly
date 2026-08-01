@@ -52,9 +52,9 @@ function render() {
 }
 
 function click(id: string) {
-  document.querySelector<HTMLButtonElement>(`#${id}`)!.dispatchEvent(
-    new MouseEvent("click", { bubbles: true, cancelable: true }),
-  );
+  document
+    .querySelector<HTMLButtonElement>(`#${id}`)!
+    .dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
 }
 
 beforeEach(() => {
@@ -77,7 +77,8 @@ afterEach(() => {
 
 describe("installViewControlBehaviour", () => {
   it("handles clicks on the initially rendered buttons", async () => {
-    const { installViewControlBehaviour } = await import("../../src/renderer/adapter/viewControls.ts");
+    const { installViewControlBehaviour } =
+      await import("../../src/renderer/adapter/viewControls.ts");
     installViewControlBehaviour();
 
     click("FullscreenToggle");
@@ -85,7 +86,8 @@ describe("installViewControlBehaviour", () => {
   });
 
   it("still handles clicks after the controls are re-rendered", async () => {
-    const { installViewControlBehaviour } = await import("../../src/renderer/adapter/viewControls.ts");
+    const { installViewControlBehaviour } =
+      await import("../../src/renderer/adapter/viewControls.ts");
     installViewControlBehaviour();
 
     render(); // AppendViewControls(true) — replaces every button node
@@ -99,7 +101,8 @@ describe("installViewControlBehaviour", () => {
   });
 
   it("binds only once even if installed repeatedly", async () => {
-    const { installViewControlBehaviour } = await import("../../src/renderer/adapter/viewControls.ts");
+    const { installViewControlBehaviour } =
+      await import("../../src/renderer/adapter/viewControls.ts");
     installViewControlBehaviour();
     installViewControlBehaviour();
     installViewControlBehaviour();
@@ -109,7 +112,8 @@ describe("installViewControlBehaviour", () => {
   });
 
   it("wires the LyricsManager button", async () => {
-    const { installViewControlBehaviour } = await import("../../src/renderer/adapter/viewControls.ts");
+    const { installViewControlBehaviour } =
+      await import("../../src/renderer/adapter/viewControls.ts");
     installViewControlBehaviour();
 
     click("LyricsManager");
@@ -117,12 +121,13 @@ describe("installViewControlBehaviour", () => {
   });
 
   it("ignores clicks that land outside any known control", async () => {
-    const { installViewControlBehaviour } = await import("../../src/renderer/adapter/viewControls.ts");
+    const { installViewControlBehaviour } =
+      await import("../../src/renderer/adapter/viewControls.ts");
     installViewControlBehaviour();
 
-    document.querySelector<HTMLElement>("#SpicyLyricsPage")!.dispatchEvent(
-      new MouseEvent("click", { bubbles: true }),
-    );
+    document
+      .querySelector<HTMLElement>("#SpicyLyricsPage")!
+      .dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(api.toggleFullscreen).not.toHaveBeenCalled();
     expect(api.hideWindow).not.toHaveBeenCalled();
   });

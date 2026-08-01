@@ -7,9 +7,9 @@ describe("fetchITunesArtwork", () => {
       ok: true,
       json: async () => ({
         results: [
-          { artworkUrl100: "https://is1-ssl.mzstatic.com/image/thumb/Music/100x100bb.jpg" }
-        ]
-      })
+          { artworkUrl100: "https://is1-ssl.mzstatic.com/image/thumb/Music/100x100bb.jpg" },
+        ],
+      }),
     };
     const globalFetch = globalThis.fetch;
     globalThis.fetch = vi.fn().mockResolvedValue(mockResponse) as any;

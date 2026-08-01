@@ -15,10 +15,15 @@ const lyricsLogger = new Logger("Lyrics Pipeline");
 const lyricsCacheLogger = new Logger("Lyrics Cache");
 
 // recently updated key structure - changed name
-export const LyricsStore = GetExpireStore<any>("SpicyLyrics_LyricsStore_g1", 1, {
-  Unit: "Days",
-  Duration: 3,
-}, isDev as true);
+export const LyricsStore = GetExpireStore<any>(
+  "SpicyLyrics_LyricsStore_g1",
+  1,
+  {
+    Unit: "Days",
+    Duration: 3,
+  },
+  isDev as true
+);
 
 const lyricsPacker = new SLObjPack();
 
@@ -66,10 +71,7 @@ export default async function fetchLyrics(uri: string): Promise<[object | string
 
   const mediaType = SpotifyPlayer.GetMediaType();
 
-  if (
-    mediaType &&
-    mediaType !== "audio"
-  ) {
+  if (mediaType && mediaType !== "audio") {
     $currentlyFetching.set(false);
     if (mediaType === "video") {
       return ["video-track", 400];
@@ -100,7 +102,6 @@ export default async function fetchLyrics(uri: string): Promise<[object | string
   if (LyricsContent) {
     LyricsContent.classList.add("HiddenTransitioned");
   }
-
 
   // Check if there's already data in localStorage
   const savedLyricsData = $currentLyricsData.get();
@@ -169,7 +170,6 @@ export default async function fetchLyrics(uri: string): Promise<[object | string
       return ["unknown-error", 0];
     }
   }
-
 
   if (!navigator.onLine) {
     $currentlyFetching.set(false);

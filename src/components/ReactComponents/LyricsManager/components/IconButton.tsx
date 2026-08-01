@@ -31,9 +31,7 @@ export function IconButton({
       type="button"
     >
       {icon && <span className="sl-ldb-icon-btn__icon">{icon}</span>}
-      {(label || children) && (
-        <span className="sl-ldb-icon-btn__label">{label ?? children}</span>
-      )}
+      {(label || children) && <span className="sl-ldb-icon-btn__label">{label ?? children}</span>}
     </button>
   );
 }

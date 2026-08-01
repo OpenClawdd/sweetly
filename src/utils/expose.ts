@@ -7,30 +7,30 @@ import { DeepFreeze } from "./utils";
 import { triggerSpicyLyricsFakeUpdate } from "./version/CheckForUpdates";
 
 export function exposeToWindow() {
-    const api = {
-        panels: {
-            settings: {
-                open: () => openSettingsPanel(),
-            },
-            lyricsDB: {
-                open: () => OpenLyricsDBPanel(),
-            },
+  const api = {
+    panels: {
+      settings: {
+        open: () => openSettingsPanel(),
+      },
+      lyricsDB: {
+        open: () => OpenLyricsDBPanel(),
+      },
+    },
+    db: {
+      dbPromise: dbPromise,
+      objectStores: {
+        lyricsStore: {
+          manager: LocalLyricsManager,
         },
-        db: {
-            dbPromise: dbPromise,
-            objectStores: {
-                lyricsStore: {
-                    manager: LocalLyricsManager,
-                }
-            }
-        },
-        testing: {
-            autoUpdate: {
-                triggerFakeUpdate: triggerSpicyLyricsFakeUpdate,
-            },
-            toaster: toast,
-        }
-    };
+      },
+    },
+    testing: {
+      autoUpdate: {
+        triggerFakeUpdate: triggerSpicyLyricsFakeUpdate,
+      },
+      toaster: toast,
+    },
+  };
 
-    (window as any).SpicyLyrics = DeepFreeze(api);
+  (window as any).SpicyLyrics = DeepFreeze(api);
 }

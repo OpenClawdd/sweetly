@@ -85,7 +85,10 @@ export async function exportCurrentArtwork(trackKey) {
     end tell`;
 
     try {
-      const { stdout } = await execFileAsync("osascript", ["-e", exportScript], { encoding: "utf8", timeout: 3000 });
+      const { stdout } = await execFileAsync("osascript", ["-e", exportScript], {
+        encoding: "utf8",
+        timeout: 3000,
+      });
       const outPath = stdout.trim();
       if (outPath) {
         try {
@@ -206,7 +209,10 @@ export async function fetchAppleMusicState() {
     };
   } catch (err) {
     const detail = err.stderr || err.message || String(err);
-    if (!detail.includes("Can't get current track") && !detail.includes("Application isn't running")) {
+    if (
+      !detail.includes("Can't get current track") &&
+      !detail.includes("Application isn't running")
+    ) {
       console.error("[AppleScript error]:", String(detail).split("\n")[0]);
     }
     return { status: "closed", track: null };
@@ -225,8 +231,13 @@ export function pollAppleMusic(intervalMs, onState, getNextInterval) {
 
   const tick = async () => {
     if (stopped) return;
-    const state = await fetchAppleMusicState();
-    onState(state);
+    let state = { status: "closed", track: null };
+    try {
+      state = await fetchAppleMusicState();
+      onState(state);
+    } catch (err) {
+      console.error("[Sweetly-Main] poll error:", err);
+    }
     if (stopped) return;
     const next = getNextInterval ? getNextInterval(state) : intervalMs;
     timer = setTimeout(tick, next);
@@ -263,7 +274,12 @@ async function runControl(label, script) {
 export async function setPlayerPosition(seconds) {
   const pos = Number(seconds);
   if (!Number.isFinite(pos) || pos < 0) return false;
-  return (await runControl(`Set position: ${pos}`, `tell application "Music" to set player position to ${pos}`)) !== null;
+  return (
+    (await runControl(
+      `Set position: ${pos}`,
+      `tell application "Music" to set player position to ${pos}`
+    )) !== null
+  );
 }
 
 export async function togglePlayPause() {
@@ -275,7 +291,9 @@ export async function skipToNext() {
 }
 
 export async function skipToPrevious() {
-  return (await runControl("Previous track", `tell application "Music" to previous track`)) !== null;
+  return (
+    (await runControl("Previous track", `tell application "Music" to previous track`)) !== null
+  );
 }
 
 export async function toggleShuffle() {
@@ -284,7 +302,7 @@ export async function toggleShuffle() {
     `tell application "Music"
       set shuffle enabled to not (shuffle enabled)
       return (shuffle enabled) as string
-    end tell`,
+    end tell`
   );
   return out === "true";
 }
@@ -302,7 +320,7 @@ export async function cycleRepeat() {
         set song repeat to off
       end if
       return (song repeat) as string
-    end tell`,
+    end tell`
   );
   return out || "off";
 }
@@ -313,7 +331,7 @@ export async function toggleFavorite() {
     `tell application "Music"
       set favorited of current track to not (favorited of current track)
       return (favorited of current track) as string
-    end tell`,
+    end tell`
   );
   return out === "true";
 }

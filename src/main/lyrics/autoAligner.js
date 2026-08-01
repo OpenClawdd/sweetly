@@ -43,7 +43,9 @@ export function setAlignStatusListener(cb) {
 }
 
 function emitStatus(payload) {
-  try { onStatusCallback?.(payload); } catch {}
+  try {
+    onStatusCallback?.(payload);
+  } catch {}
 }
 
 export function getActiveJobs() {
@@ -64,7 +66,10 @@ function alignScript() {
   const candidates = [
     process.env.SWEETLY_ALIGN_SCRIPT,
     path.resolve(process.cwd(), "scripts/align_lyrics.py"),
-    path.resolve(path.dirname(new URL(import.meta.url).pathname), "../../../scripts/align_lyrics.py"),
+    path.resolve(
+      path.dirname(new URL(import.meta.url).pathname),
+      "../../../scripts/align_lyrics.py"
+    ),
   ];
   return candidates.find((p) => p && fs.existsSync(p)) || null;
 }
@@ -85,7 +90,8 @@ function escapeXml(value) {
     .replace(/"/g, "&quot;");
 }
 
-const INTERJECTIONS = /^\(?(boom[-]?boom|skrrt|yeah|yea|uh|uh-huh|woah|whoa|ay|aye|brrr|brrt|pew|pop|gang|bop|ha|haha|yah|yup|oh|hol'?\s*up|hold\s*up)\)?$/i;
+const INTERJECTIONS =
+  /^\(?(boom[-]?boom|skrrt|yeah|yea|uh|uh-huh|woah|whoa|ay|aye|brrr|brrt|pew|pop|gang|bop|ha|haha|yah|yup|oh|hol'?\s*up|hold\s*up)\)?$/i;
 
 /**
  * WhisperX/Qwen JSON -> Apple-shaped TTML.
@@ -221,16 +227,27 @@ export function existingAlignmentIsUsable(ttmlPath, duration) {
   }
 }
 
-export async function triggerAutoAlignment({ name, artist, duration, position = 0, lyricsText = "", anchors = [] }) {
+export async function triggerAutoAlignment({
+  name,
+  artist,
+  duration,
+  position = 0,
+  lyricsText = "",
+  anchors = [],
+}) {
   const key = customKey(name, artist);
   if (!key) return { started: false, reason: "no key" };
   if (activeJobs.has(key)) return { started: false, reason: "already running" };
 
   fs.mkdirSync(WORK_DIR, { recursive: true });
   const ttmlPath = path.join(CUSTOM_DIR, `${key}.ttml`);
-  if (existingAlignmentIsUsable(ttmlPath, duration)) return { started: false, reason: "already aligned" };
+  if (existingAlignmentIsUsable(ttmlPath, duration))
+    return { started: false, reason: "already aligned" };
   if (fs.existsSync(ttmlPath)) {
-    console.log("[Sweetly-Aligner] Existing alignment is collapsed or unreadable, regenerating:", ttmlPath);
+    console.log(
+      "[Sweetly-Aligner] Existing alignment is collapsed or unreadable, regenerating:",
+      ttmlPath
+    );
   }
 
   // Pre-aligned JSON dropped in by hand or by convert-whisperx.
@@ -281,7 +298,7 @@ export async function triggerAutoAlignment({ name, artist, duration, position = 
   const seconds = Math.min(duration - position + 1, 600);
   console.log(
     `[Sweetly-Aligner] Capturing "${name}" from ${device.name} for ${Math.round(seconds)}s`,
-    anchorsPath ? "(anchored)" : lyricsPath ? "(forced alignment)" : "(ASR)",
+    anchorsPath ? "(anchored)" : lyricsPath ? "(forced alignment)" : "(ASR)"
   );
 
   // Fire-and-forget: this runs for the length of the song.
@@ -289,7 +306,10 @@ export async function triggerAutoAlignment({ name, artist, duration, position = 
     try {
       emitStatus({ name, artist, phase: "capturing", seconds: Math.round(seconds) });
       const cap = await captureSystemAudio({
-        seconds, outPath: audioPath, deviceIndex: device.index, signal: controller.signal,
+        seconds,
+        outPath: audioPath,
+        deviceIndex: device.index,
+        signal: controller.signal,
       });
       if (!cap.ok) {
         console.log("[Sweetly-Aligner] Capture failed:", cap.reason);
@@ -322,7 +342,10 @@ export async function triggerAutoAlignment({ name, artist, duration, position = 
         console.log("[Sweetly-Aligner] Keeping work files in", WORK_DIR);
       } else {
         for (const f of [audioPath, outJson, lyricsPath]) {
-          if (f) try { fs.unlinkSync(f); } catch {}
+          if (f)
+            try {
+              fs.unlinkSync(f);
+            } catch {}
         }
       }
     }

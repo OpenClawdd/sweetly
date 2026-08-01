@@ -212,7 +212,10 @@ class SettingsSection {
     return (
       <div className="x-settings-row eguwzH_QWTBXry7hiNj3">
         <div className="x-settings-firstColumn lfXDZUXLhhKhFPjDO8by">
-          <label className="TypeElement-viola-textSubdued-type e-91000-text encore-text-body-small encore-internal-color-text-subdued" htmlFor={id}>
+          <label
+            className="TypeElement-viola-textSubdued-type e-91000-text encore-text-body-small encore-internal-color-text-subdued"
+            htmlFor={id}
+          >
             {props.field.description || ""}
           </label>
         </div>

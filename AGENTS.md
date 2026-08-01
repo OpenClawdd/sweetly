@@ -13,6 +13,7 @@ ELECTRON_DISABLE_SANDBOX=1 bun run dev
 **First run** (dev or packaged): the setup gate appears until a media-user-token is saved. To bypass in dev, drop a token in `~/.sweetly-token` or set `MEDIA_USER_TOKEN`.
 
 If the app shows "Open Apple Music to begin":
+
 1. Open **System Settings > Privacy & Security > Automation**
 2. Enable **Electron** for **Music** (play a song first to trigger the permission prompt)
 3. Restart the app
@@ -69,25 +70,26 @@ bunx oxfmt --check  # .oxfmtrc.json at root
 
 ## IPC Summary
 
-| Channel | Direction | Purpose |
-|---|---|---|
-| `music-update` | Main → Renderer | Pushed every poll (or on state change) |
-| `align-status` / `lyrics-updated` | Main → Renderer | Alignment progress / completion |
-| `get-initial-state` | Renderer → Main | Current Apple Music state on mount |
-| `toggle-fullscreen` | Renderer → Main | Real macOS fullscreen toggle |
-| `fetch-lyrics` | Renderer → Main | Unified lyrics fetch. Returns `{ data, provider, artworkUrl }` |
-| `get-setup-status` | Renderer → Main | `{ hasMediaUserToken, spotifySignedIn, spotifyClientIdConfigured }` |
-| `set-media-user-token` | Renderer → Main | Persist media-user-token to electron-store |
-| `spotify-sign-in` | Renderer → Main | Interactive Spotify consent flow (optional) |
-| `save-custom-lyrics`, `seek-to`, `toggle-play-pause`, `next-track`, `previous-track`, `toggle-shuffle`, `cycle-repeat`, `toggle-favorite` | Renderer → Main | Playback & custom lyrics |
+| Channel                                                                                                                                   | Direction       | Purpose                                                             |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------- |
+| `music-update`                                                                                                                            | Main → Renderer | Pushed every poll (or on state change)                              |
+| `align-status` / `lyrics-updated`                                                                                                         | Main → Renderer | Alignment progress / completion                                     |
+| `get-initial-state`                                                                                                                       | Renderer → Main | Current Apple Music state on mount                                  |
+| `toggle-fullscreen`                                                                                                                       | Renderer → Main | Real macOS fullscreen toggle                                        |
+| `fetch-lyrics`                                                                                                                            | Renderer → Main | Unified lyrics fetch. Returns `{ data, provider, artworkUrl }`      |
+| `get-setup-status`                                                                                                                        | Renderer → Main | `{ hasMediaUserToken, spotifySignedIn, spotifyClientIdConfigured }` |
+| `set-media-user-token`                                                                                                                    | Renderer → Main | Persist media-user-token to electron-store                          |
+| `spotify-sign-in`                                                                                                                         | Renderer → Main | Interactive Spotify consent flow (optional)                         |
+| `save-custom-lyrics`, `seek-to`, `toggle-play-pause`, `next-track`, `previous-track`, `toggle-shuffle`, `cycle-repeat`, `toggle-favorite` | Renderer → Main | Playback & custom lyrics                                            |
 
 ## The critical invariant: `src/` is a vendored AGPL fork
 
-`src/` is a copy of **Spicy Lyrics 6.2.3** (AGPL-3.0, by Spikerko). This app runs Spicy's *actual* renderer, not a reimplementation.
+`src/` is a copy of **Spicy Lyrics 6.2.3** (AGPL-3.0, by Spikerko). This app runs Spicy's _actual_ renderer, not a reimplementation.
 
 **Host-side first.** Every behavioural change belongs in `src/renderer/`, `src/main/`, `src/preload/` or `electron.vite.config.ts`. Before editing anything else under `src/`, look for the module-substitution, shim or event-pump equivalent — that is almost always where the change belongs, and a host-side fix survives an upstream bump that an in-place edit does not.
 
 **Upstream edits are allowed but must earn it.** When you do edit upstream:
+
 - Keep the diff minimal and local; do not reformat or "clean up" around it.
 - Say so in the commit message, and say why the host-side route did not work.
 
@@ -112,7 +114,7 @@ Before replacing or omitting any upstream module, grep it for `$store.set(`, `ne
 
 ## macOS gotchas
 
-- **Automation permission**: the first `osascript` call fails until Automation access to Music is granted. Play a song to trigger the prompt, enable it under *System Settings → Privacy & Security → Automation*, restart. Polling recovers.
+- **Automation permission**: the first `osascript` call fails until Automation access to Music is granted. Play a song to trigger the prompt, enable it under _System Settings → Privacy & Security → Automation_, restart. Polling recovers.
 - **Apple Music lyrics** need a `media-user-token`, saved via the setup screen (or `~/.sweetly-token` / `MEDIA_USER_TOKEN` for dev). Without it the pipeline falls back to the other providers.
 - **Spotify sign-in** is optional. It requires a client id: `scripts/` or env `SPOTIFY_CLIENT_ID`, plus a registered Redirect URI of `http://127.0.0.1:8888/callback`. Without it, the Spicy Lyrics community source is skipped.
 - **Alignment** (`scripts/align_lyrics.py` + `main/lyrics/audioCapture.js`) needs a system ffmpeg and BlackHole for capture. It degrades gracefully when missing.

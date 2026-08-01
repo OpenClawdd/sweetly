@@ -21,25 +21,56 @@ function pixels(list: Array<[number, number, number]>): Uint8ClampedArray {
 
 describe("pickVibrant", () => {
   test("prefers the saturated pixel over the grey one", () => {
-    expect(pickVibrant(pixels([[128, 128, 128], [220, 20, 60]]))).toBe("#dc143c");
+    expect(
+      pickVibrant(
+        pixels([
+          [128, 128, 128],
+          [220, 20, 60],
+        ])
+      )
+    ).toBe("#dc143c");
   });
 
   test("ignores near-black pixels", () => {
-    expect(pickVibrant(pixels([[5, 5, 5], [60, 180, 75]]))).toBe("#3cb44b");
+    expect(
+      pickVibrant(
+        pixels([
+          [5, 5, 5],
+          [60, 180, 75],
+        ])
+      )
+    ).toBe("#3cb44b");
   });
 
   test("ignores near-white pixels", () => {
-    expect(pickVibrant(pixels([[250, 250, 250], [60, 180, 75]]))).toBe("#3cb44b");
+    expect(
+      pickVibrant(
+        pixels([
+          [250, 250, 250],
+          [60, 180, 75],
+        ])
+      )
+    ).toBe("#3cb44b");
   });
 
   test("ignores transparent pixels", () => {
-    const data = pixels([[220, 20, 60], [60, 180, 75]]);
+    const data = pixels([
+      [220, 20, 60],
+      [60, 180, 75],
+    ]);
     data[3] = 0; // knock out the crimson
     expect(pickVibrant(data)).toBe("#3cb44b");
   });
 
   test("falls back to grey when every pixel is out of range", () => {
-    expect(pickVibrant(pixels([[0, 0, 0], [255, 255, 255]]))).toBe("#999999");
+    expect(
+      pickVibrant(
+        pixels([
+          [0, 0, 0],
+          [255, 255, 255],
+        ])
+      )
+    ).toBe("#999999");
   });
 });
 

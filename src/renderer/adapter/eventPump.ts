@@ -35,7 +35,12 @@ export interface EventPump {
   tick: () => void;
 }
 
-export function createEventPump({ evoke, getPosition, isPlaying, getUri }: EventPumpDeps): EventPump {
+export function createEventPump({
+  evoke,
+  getPosition,
+  isPlaying,
+  getUri,
+}: EventPumpDeps): EventPump {
   // `null` means "nothing observed yet", which is distinct from a real value
   // and is what suppresses spurious events on the very first tick.
   let lastUri: string | undefined | null = null;

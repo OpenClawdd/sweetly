@@ -53,11 +53,11 @@ export default defineConfig({
       substituteUpstreamModules({
         "src/components/Global/SpotifyPlayer.ts": resolve(
           __dirname,
-          "src/renderer/adapter/AppleMusicPlayer.ts",
+          "src/renderer/adapter/AppleMusicPlayer.ts"
         ),
         "src/components/Global/Platform.ts": resolve(
           __dirname,
-          "src/renderer/adapter/platformShim.ts",
+          "src/renderer/adapter/platformShim.ts"
         ),
       }),
       react(),

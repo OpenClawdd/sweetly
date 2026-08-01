@@ -65,7 +65,7 @@ export function startPunchLayer(): () => void {
   // ApplyLyrics rebuilds .LyricsContent wholesale, so watch the page for it.
   const pageObserver = new MutationObserver(() => {
     const content = document.querySelector<HTMLElement>(
-      `${PAGE_SELECTOR} .LyricsContainer .LyricsContent`,
+      `${PAGE_SELECTOR} .LyricsContainer .LyricsContent`
     );
     if (content && !content.dataset.punchAttached) {
       content.dataset.punchAttached = "1";
@@ -75,7 +75,7 @@ export function startPunchLayer(): () => void {
   pageObserver.observe(document.body, { childList: true, subtree: true });
 
   const existing = document.querySelector<HTMLElement>(
-    `${PAGE_SELECTOR} .LyricsContainer .LyricsContent`,
+    `${PAGE_SELECTOR} .LyricsContainer .LyricsContent`
   );
   if (existing) {
     existing.dataset.punchAttached = "1";

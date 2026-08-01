@@ -60,7 +60,7 @@ export function ApplyStaticLyrics(data: StaticLyricsData, UseRomanized: boolean 
   }
 
   LyricsContainer.classList.remove("HasDuetLines");
-  const hasRtlLines = data.Lines.some(line => isRtl(line.Text));
+  const hasRtlLines = data.Lines.some((line) => isRtl(line.Text));
   LyricsContainer.classList.toggle("HasRtlLines", hasRtlLines);
 
   LyricsContainer.setAttribute("data-lyrics-type", "Static");

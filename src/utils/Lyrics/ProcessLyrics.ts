@@ -13,8 +13,7 @@ const RomajiPromise = RomajiConverter.init(KuromojiAnalyzer);
 
 const romanizationLogger = new Logger("Lyrics Romanization");
 
-const KoreanTextTest =
-  /[가-힯]|[ᄀ-ᇿ]|[㄰-㆏]|[ꥠ-꥿]|[ힰ-퟿]/;
+const KoreanTextTest = /[가-힯]|[ᄀ-ᇿ]|[㄰-㆏]|[ꥠ-꥿]|[ힰ-퟿]/;
 const ChineseTextText = /([一-鿿])/;
 const JapaneseTextText = /([ぁ-んァ-ン])/;
 
@@ -35,18 +34,14 @@ const ItemCyrillicTest = /[Ѐ-ӿԀ-ԯⷠ-ⷿꙀ-ꚟ]/;
 const ItemGreekTest = GreekTextTest;
 
 // Any original (non-Latin) romanizable script — used in dev to flag residue.
-const ResidualScriptTest =
-  /[぀-ヿ一-鿿가-힯ᄀ-ᇿ㄰-㆏Ѐ-ԯͰ-Ͽἀ-῿]/;
+const ResidualScriptTest = /[぀-ヿ一-鿿가-힯ᄀ-ᇿ㄰-㆏Ѐ-ԯͰ-Ͽἀ-῿]/;
 
 // Load Packages
-RetrievePackage("pinyin", "4.0.0", "mjs")
-  .catch(() => {});
+RetrievePackage("pinyin", "4.0.0", "mjs").catch(() => {});
 
-RetrievePackage("aromanize", "1.0.0", "js")
-  .catch(() => {});
+RetrievePackage("aromanize", "1.0.0", "js").catch(() => {});
 
-RetrievePackage("GreekRomanization", "1.0.0", "js")
-  .catch(() => {});
+RetrievePackage("GreekRomanization", "1.0.0", "js").catch(() => {});
 
 type RomanizationBranch = "Japanese" | "Chinese" | "Korean" | "Cyrillic" | "Greek";
 
@@ -198,8 +193,7 @@ const gatherText = (
   // franc analyses lead text only (so Language detection is unchanged); script
   // detection additionally considers background vocals, which are romanized too.
   const francText = textLines.join("\n");
-  const scriptText =
-    bgTextLines.length > 0 ? `${francText}\n${bgTextLines.join("\n")}` : francText;
+  const scriptText = bgTextLines.length > 0 ? `${francText}\n${bgTextLines.join("\n")}` : francText;
   return { francText, scriptText, entries };
 };
 
@@ -290,10 +284,10 @@ const romanizeEntry = async (
     target.TransliteratedText = text;
     line.HasTransliterations = true;
     if (ResidualScriptTest.test(text)) {
-      romanizationLogger.warn(
-        "Incomplete romanization (original-script characters remain)",
-        { original: target.Text, romanized: text }
-      );
+      romanizationLogger.warn("Incomplete romanization (original-script characters remain)", {
+        original: target.Text,
+        romanized: text,
+      });
     }
   }
 

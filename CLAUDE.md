@@ -28,7 +28,7 @@ vitest, run via `bun test`.
 ## The critical invariant: `src/` is a vendored AGPL fork
 
 `src/` is a copy of **Spicy Lyrics 6.2.3** (AGPL-3.0, by Spikerko). This app runs
-Spicy's *actual* renderer, not a reimplementation of it.
+Spicy's _actual_ renderer, not a reimplementation of it.
 
 **Host-side first.** Every behavioural change belongs in `src/renderer/`,
 `src/main/`, `src/preload/` or `electron.vite.config.ts`. Before editing
@@ -45,6 +45,7 @@ are gated on. Others are load-bearing seams — `GetProgress.ts`, `stores.ts`,
 `NowBar.ts`, `dynamicBackground.ts`, `ImportPackage.ts`.
 
 When you do edit upstream:
+
 - Keep the diff minimal and local; do not reformat or "clean up" around it.
 - Say so in the commit message, and say why the host-side route did not work.
 
@@ -77,8 +78,8 @@ run standalone against Apple Music:
    `app.tsx`'s order, and `main.ts` pulls in that one module dynamically. Upstream
    has import cycles (`PageView.ts` exports a mutable `PageContainer` that the
    applyers read); importing modules individually with `Promise.all` evaluates
-   them in an order `app.tsx` never produces and throws *"Cannot access
-   'PageContainer' before initialization"*.
+   them in an order `app.tsx` never produces and throws _"Cannot access
+   'PageContainer' before initialization"_.
 
 `renderer/main.ts` replaces upstream's `app.tsx`, minus everything that exists to
 embed into Spotify's chrome (NPVLyrics, PopupLyrics, now-playing-bar observers,
@@ -107,6 +108,7 @@ Before replacing or omitting any upstream module, grep it for `$store.set(`,
 `new IntervalManager`, `Global.Event.evoke`, and `classList` writes, and port each.
 
 Corollaries:
+
 - When an element "exists with sane computed styles but does not paint", inspect
   its **children**. A parent's `color` is meaningless under
   `-webkit-text-fill-color`.
@@ -128,7 +130,7 @@ Corollaries:
 4. `main.ts` publishes `$currentLyricsType`, then calls upstream `ApplyLyrics`.
    A self-starting rAF loop in `utils/Lyrics/lyrics.ts:228` drives the animator.
 
-`renderer/lyrics/toSpicyShape.ts` converts *locally-sourced* TTML on-device.
+`renderer/lyrics/toSpicyShape.ts` converts _locally-sourced_ TTML on-device.
 Do not use upstream's `utils/Lyrics/manager/parseTTML.ts` for this — it is a
 remote call to Spicy's hosted API, not a local parser.
 
@@ -165,7 +167,7 @@ optional Spotify section drives `spotify-sign-in` IPC → `authorize()` in
 
 - **Automation permission**: the first `osascript` call fails until Automation
   access to Music is granted. Play a song to trigger the prompt, enable it under
-  *System Settings → Privacy & Security → Automation*, restart. Polling recovers.
+  _System Settings → Privacy & Security → Automation_, restart. Polling recovers.
 - **Apple Music lyrics** need a `media-user-token` cookie from the web player,
   read from `~/.sweetly-token` (one line). Without it the pipeline falls back to
   the other providers.

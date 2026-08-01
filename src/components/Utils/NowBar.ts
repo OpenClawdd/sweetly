@@ -273,8 +273,12 @@ function OpenNowBar(skipSaving: boolean = false) {
 
         // Add event listeners to each control with named functions
         playbackControls.forEach((control) => {
-          const pressHandler = () => { control.classList.add("Pressed"); };
-          const releaseHandler = () => { control.classList.remove("Pressed"); };
+          const pressHandler = () => {
+            control.classList.add("Pressed");
+          };
+          const releaseHandler = () => {
+            control.classList.remove("Pressed");
+          };
 
           control.addEventListener("mousedown", pressHandler);
           control.addEventListener("touchstart", pressHandler);
@@ -594,7 +598,9 @@ function OpenNowBar(skipSaving: boolean = false) {
 
         const cleanup = () => {
           timelineMaid.Destroy();
-          const progressBar = ActiveSongProgressBarInstance_Map.get("SongProgressBar_ClassInstance");
+          const progressBar = ActiveSongProgressBarInstance_Map.get(
+            "SongProgressBar_ClassInstance"
+          );
           if (progressBar) progressBar.Destroy();
           if (TimelineElem.parentNode) TimelineElem.parentNode.removeChild(TimelineElem);
           ActiveSongProgressBarInstance_Map.clear();
@@ -812,9 +818,7 @@ function CleanUpActiveComponents() {
   }
 
   // Also remove Timeline if it was placed in the Header
-  const headerTimeline = PageContainer?.querySelector(
-    ".ContentBox .NowBar .Header > .Timeline"
-  );
+  const headerTimeline = PageContainer?.querySelector(".ContentBox .NowBar .Header > .Timeline");
   if (headerTimeline) headerTimeline.remove();
 
   // // console.log("Finished CleanUpActiveComponents Process");
@@ -979,11 +983,7 @@ function UpdateNowBar(force = false) {
   const NowBar = PageContainer?.querySelector(".ContentBox .NowBar");
   if (!NowBar) return;
 
-  const waitForTransitionEnd = (
-    el: HTMLElement,
-    propertyName: string,
-    timeoutMs: number,
-  ) =>
+  const waitForTransitionEnd = (el: HTMLElement, propertyName: string, timeoutMs: number) =>
     new Promise<void>((resolve) => {
       let done = false;
       const finish = () => {
@@ -1002,7 +1002,9 @@ function UpdateNowBar(force = false) {
 
   const MetadataContainer = NowBar.querySelector<HTMLElement>(".Header .Metadata");
   const ArtistsSpan = MetadataContainer?.querySelector(".Artists span");
-  const MediaImageContainer = NowBar.querySelector<HTMLDivElement>(".Header .MediaBox .MediaImageContainer");
+  const MediaImageContainer = NowBar.querySelector<HTMLDivElement>(
+    ".Header .MediaBox .MediaImageContainer"
+  );
   const SongNameSpan = MetadataContainer?.querySelector<HTMLElement>(".SongName span");
 
   if (!$isNowBarOpen.get() && !force) return;
@@ -1085,70 +1087,68 @@ function UpdateNowBar(force = false) {
           .then((blobUrl) => blobUrl ?? coverArt)
           .catch(() => coverArt);
 
-    displayUrlPromise
-      .then((displayUrl) => {
-        // If the container was removed or a newer update ran while we were loading, skip
-        if (!MediaImageContainer.isConnected) return;
-        const latestToken = MediaImageContainer.getAttribute("data-update-token");
-        if (latestToken !== updateToken) return;
+    displayUrlPromise.then((displayUrl) => {
+      // If the container was removed or a newer update ran while we were loading, skip
+      if (!MediaImageContainer.isConnected) return;
+      const latestToken = MediaImageContainer.getAttribute("data-update-token");
+      if (latestToken !== updateToken) return;
 
-        MediaImageContainer.setAttribute("last-image", coverArt ?? "");
-        MediaImageContainer.setAttribute("last-image-url", displayUrl);
+      MediaImageContainer.setAttribute("last-image", coverArt ?? "");
+      MediaImageContainer.setAttribute("last-image-url", displayUrl);
 
-        const fromImage = MediaImageContainer.querySelector<HTMLDivElement>(".fi_FromImage");
-        const toImage = MediaImageContainer.querySelector<HTMLDivElement>(".ti_ToImage");
+      const fromImage = MediaImageContainer.querySelector<HTMLDivElement>(".fi_FromImage");
+      const toImage = MediaImageContainer.querySelector<HTMLDivElement>(".ti_ToImage");
 
-        // If we don't even have a target image element, bail completely
-        if (!toImage) return;
+      // If we don't even have a target image element, bail completely
+      if (!toImage) return;
 
-        toImage.style.backgroundImage = `url("${displayUrl}")`
-        toImage.classList.remove("MB_hidden");
-        toImage.classList.add("containsImage")
+      toImage.style.backgroundImage = `url("${displayUrl}")`;
+      toImage.classList.remove("MB_hidden");
+      toImage.classList.add("containsImage");
 
-        const canAnimate = !!fromImage && fromImage.classList.contains("containsImage");
+      const canAnimate = !!fromImage && fromImage.classList.contains("containsImage");
 
-        // Only run the crossfade animation if fromImage already has an image
-        if (canAnimate) {
-          if (toImage.classList.contains("containsImage")) {
-            toImage.classList.add("MB_anim_enter");
-            fromImage?.classList.add("MB_anim_fimg");
-          }
-
-          setTimeout(async () => {
-            // If another track update happened during the timeout, skip applying stale state
-            const latestInnerToken = MediaImageContainer.getAttribute("data-update-token");
-            if (latestInnerToken !== updateToken) return;
-            fromImage!.style.backgroundImage = `url("${displayUrl}")`
-            fromImage!.classList.add("containsImage");
-
-            // Ensure the fromImage blur overlay fades out (opacity -> 0) before we hide toImage.
-            // `MB_anim_fimg` toggles `fromImage::before { opacity }` with a CSS transition.
-            fromImage!.classList.remove("MB_anim_fimg");
-            await waitForTransitionEnd(fromImage!, "opacity", 950);
-
-            const latestAfterFadeToken = MediaImageContainer.getAttribute("data-update-token");
-            if (latestAfterFadeToken !== updateToken) return;
-            toImage.classList.add("MB_hidden");
-            toImage.classList.remove("MB_anim_enter");
-          }, 1100)
-        } else {
-          // No fromImage image yet: just set fromImage (or fall back to toImage) without animation
-          toImage.classList.remove("MB_anim_enter");
-          toImage.classList.add("MB_hidden");
-
-          if (fromImage) {
-            fromImage.style.backgroundImage = `url("${displayUrl}")`;
-            fromImage.classList.add("containsImage");
-            fromImage.classList.remove("MB_anim_fimg");
-          } else {
-            toImage.classList.remove("MB_hidden");
-            toImage.classList.add("containsImage");
-          }
+      // Only run the crossfade animation if fromImage already has an image
+      if (canAnimate) {
+        if (toImage.classList.contains("containsImage")) {
+          toImage.classList.add("MB_anim_enter");
+          fromImage?.classList.add("MB_anim_fimg");
         }
-      });
+
+        setTimeout(async () => {
+          // If another track update happened during the timeout, skip applying stale state
+          const latestInnerToken = MediaImageContainer.getAttribute("data-update-token");
+          if (latestInnerToken !== updateToken) return;
+          fromImage!.style.backgroundImage = `url("${displayUrl}")`;
+          fromImage!.classList.add("containsImage");
+
+          // Ensure the fromImage blur overlay fades out (opacity -> 0) before we hide toImage.
+          // `MB_anim_fimg` toggles `fromImage::before { opacity }` with a CSS transition.
+          fromImage!.classList.remove("MB_anim_fimg");
+          await waitForTransitionEnd(fromImage!, "opacity", 950);
+
+          const latestAfterFadeToken = MediaImageContainer.getAttribute("data-update-token");
+          if (latestAfterFadeToken !== updateToken) return;
+          toImage.classList.add("MB_hidden");
+          toImage.classList.remove("MB_anim_enter");
+        }, 1100);
+      } else {
+        // No fromImage image yet: just set fromImage (or fall back to toImage) without animation
+        toImage.classList.remove("MB_anim_enter");
+        toImage.classList.add("MB_hidden");
+
+        if (fromImage) {
+          fromImage.style.backgroundImage = `url("${displayUrl}")`;
+          fromImage.classList.add("containsImage");
+          fromImage.classList.remove("MB_anim_fimg");
+        } else {
+          toImage.classList.remove("MB_hidden");
+          toImage.classList.add("containsImage");
+        }
+      }
+    });
   }
 }
-
 
 function NowBar_SwapSides() {
   const NowBar = PageContainer.querySelector(".ContentBox .NowBar");

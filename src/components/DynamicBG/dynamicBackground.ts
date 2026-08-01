@@ -5,7 +5,10 @@ import { SpotifyPlayer } from "../Global/SpotifyPlayer.ts";
 import ArtistVisuals from "./ArtistVisuals/Main.ts";
 import { PageContainer } from "../Pages/PageView.ts";
 import Kawarp, { type KawarpOptions } from "@kawarp/core";
-import { BackgroundAnimationController, type AudioAnalysisData } from "./BackgroundAnimationController.ts";
+import {
+  BackgroundAnimationController,
+  type AudioAnalysisData,
+} from "./BackgroundAnimationController.ts";
 import { getDynamicAudioAnalysis } from "../../utils/audioAnalysis.ts";
 import Logger from "../../utils/logger.ts";
 
@@ -22,7 +25,7 @@ export const KawarpOptionsStatic: KawarpOptions = {
   // tintColor: [0.16, 0.16, 0.24],
   tintIntensity: 0, // 0.15
   scale: 1,
-}
+};
 
 const COLOR_BG_FALLBACK_RGB = "18, 18, 18, 1";
 let cachedColorBackgroundEl: HTMLElement | null = null;
@@ -41,9 +44,7 @@ const LOCAL_COVER_DECODE_TIMEOUT_MS = 8000;
  * A source Kawarp can ingest: a fetchable URL (remote covers) or a decoded Blob
  * (local-file art, which can't be fetched).
  */
-type KawarpSource =
-  | { kind: "url"; value: string }
-  | { kind: "blob"; value: Blob };
+type KawarpSource = { kind: "url"; value: string } | { kind: "blob"; value: Blob };
 
 /**
  * Rasterize Spotify local-file artwork into a Blob.
@@ -68,7 +69,10 @@ async function rasterizeLocalCover(coverUrl: string): Promise<Blob | null> {
     await Promise.race([
       img.decode(),
       new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error("decode timed out")), LOCAL_COVER_DECODE_TIMEOUT_MS);
+        timeoutId = setTimeout(
+          () => reject(new Error("decode timed out")),
+          LOCAL_COVER_DECODE_TIMEOUT_MS
+        );
       }),
     ]).finally(() => clearTimeout(timeoutId));
   } catch (err) {
@@ -105,7 +109,10 @@ async function rasterizeLocalCover(coverUrl: string): Promise<Blob | null> {
  * Resolve a cover into something Kawarp can load. Remote covers pass through as a
  * URL; local-file covers are rasterized to a Blob (see {@link rasterizeLocalCover}).
  */
-async function resolveKawarpSource(coverUrl: string, isLocalCover: boolean): Promise<KawarpSource | null> {
+async function resolveKawarpSource(
+  coverUrl: string,
+  isLocalCover: boolean
+): Promise<KawarpSource | null> {
   if (isLocalCover) {
     const blob = await rasterizeLocalCover(coverUrl);
     return blob ? { kind: "blob", value: blob } : null;
@@ -121,7 +128,10 @@ async function resolveKawarpSource(coverUrl: string, isLocalCover: boolean): Pro
         return { kind: "blob", value: blob };
       }
     } catch (err) {
-      dynamicBgLogger.warn("Failed to fetch cover blob for Kawarp, falling back to direct URL", err);
+      dynamicBgLogger.warn(
+        "Failed to fetch cover blob for Kawarp, falling back to direct URL",
+        err
+      );
     }
   }
 
@@ -137,7 +147,11 @@ async function loadKawarpSource(kawarp: Kawarp, source: KawarpSource): Promise<v
   }
 }
 
-export default async function ApplyDynamicBackground(element: HTMLElement, tag?: string, opts: ApplyDynamicBackgroundOpts = {}) {
+export default async function ApplyDynamicBackground(
+  element: HTMLElement,
+  tag?: string,
+  opts: ApplyDynamicBackgroundOpts = {}
+) {
   if (!element) return;
   // The NPV lyrics card must stay transparent (the NPV's own background shows
   // through) — covers every caller that re-applies the page bg (songchange,
@@ -194,12 +208,17 @@ export default async function ApplyDynamicBackground(element: HTMLElement, tag?:
         const colorQuery = await Spicetify.GraphQL.Request(
           Spicetify.GraphQL.Definitions.getDynamicColorsByUris,
           {
-            imageUris: [SpotifyPlayer.GetCover("large") ?? ""]
+            imageUris: [SpotifyPlayer.GetCover("large") ?? ""],
           }
         );
 
         const colorResponse = colorQuery.data.dynamicColors[0];
-        const colorBestFit = colorResponse.bestFit === "DARK" ? "dark" : colorResponse.bestFit === "LIGHT" ? "light" : "dark";
+        const colorBestFit =
+          colorResponse.bestFit === "DARK"
+            ? "dark"
+            : colorResponse.bestFit === "LIGHT"
+              ? "light"
+              : "dark";
 
         const colors = colorResponse[colorBestFit];
         const fromColorObj = colors.minContrast;
@@ -219,7 +238,10 @@ export default async function ApplyDynamicBackground(element: HTMLElement, tag?:
         dynamicBg.style.setProperty("--OverlayColor", overlayColor);
       } catch (err) {
         // If the color fetch fails, just keep the black fallback
-        dynamicBgLogger.error("Failed to fetch dynamic colors, using fallback black background", err);
+        dynamicBgLogger.error(
+          "Failed to fetch dynamic colors, using fallback black background",
+          err
+        );
       }
       return;
     }
@@ -261,8 +283,8 @@ export default async function ApplyDynamicBackground(element: HTMLElement, tag?:
 
       setTimeout(() => {
         prevBg?.remove();
-        dynamicBg.classList.remove("transition_In")
-      }, 1000)
+        dynamicBg.classList.remove("transition_In");
+      }, 1000);
     }
   } else {
     const existingElement = element.querySelector<HTMLElement>(".spicy-dynamic-bg");
@@ -279,7 +301,9 @@ export default async function ApplyDynamicBackground(element: HTMLElement, tag?:
     // so we can bail before touching any instance when there's nothing to show.
     const kawarpSource = await resolveKawarpSource(currentImgCover, isLocalCover);
     if (!kawarpSource) {
-      dynamicBgLogger.warn("No loadable cover for dynamic background; skipping", { currentImgCover });
+      dynamicBgLogger.warn("No loadable cover for dynamic background; skipping", {
+        currentImgCover,
+      });
       return;
     }
 
@@ -289,7 +313,10 @@ export default async function ApplyDynamicBackground(element: HTMLElement, tag?:
     // would flash the previous track's art. Bail and let the newer invocation win.
     const liveImgCover = SpotifyPlayer.GetCover("large") ?? "";
     if (liveImgCover !== preCurrentImgCover) {
-      dynamicBgLogger.debug("Cover changed while resolving dynamic background; skipping stale apply", { tag });
+      dynamicBgLogger.debug(
+        "Cover changed while resolving dynamic background; skipping stale apply",
+        { tag }
+      );
       return;
     }
 
@@ -297,11 +324,7 @@ export default async function ApplyDynamicBackground(element: HTMLElement, tag?:
     // invocation may have disposed or replaced this tag's canvas while we were resolving.
     const liveElement = element.querySelector<HTMLElement>(".spicy-dynamic-bg");
     if (liveElement) {
-      const kawarpInstance = KawarpMap.get(
-        tag ?
-          tag :
-          liveElement
-      )
+      const kawarpInstance = KawarpMap.get(tag ? tag : liveElement);
 
       if (kawarpInstance) {
         liveElement.setAttribute("data-cover-id", currentImgCover ?? "");
@@ -315,20 +338,15 @@ export default async function ApplyDynamicBackground(element: HTMLElement, tag?:
     canvas.classList.add("spicy-dynamic-bg");
     canvas.setAttribute("data-cover-id", currentImgCover ?? "");
 
-    const kawarpInstance = new Kawarp(canvas, KawarpOptionsStatic)
-    KawarpMap.set(
-      tag ?
-        tag :
-        canvas,
-      kawarpInstance
-    )
+    const kawarpInstance = new Kawarp(canvas, KawarpOptionsStatic);
+    KawarpMap.set(tag ? tag : canvas, kawarpInstance);
     element.appendChild(canvas);
     await loadKawarpSource(kawarpInstance, kawarpSource);
     kawarpInstance.start();
     const msDelay = KawarpOptionsStatic.transitionDuration * 2;
 
     if (opts?.doTransitionDurationAppendWithPromise) {
-      await new Promise(r => setTimeout(r, msDelay));
+      await new Promise((r) => setTimeout(r, msDelay));
       kawarpInstance?.setOptions({ transitionDuration: KawarpTransitionDuration });
     } else {
       setTimeout(() => {
@@ -394,7 +412,7 @@ Global.Event.listen("playback:songchange", () => {
       staticColorBgTransitionTimeout = null;
     }, 1000);
   }
-})
+});
 
 /** Successful analysis, or `null` once we know the track has no analysis (stops progress-handler spam). */
 const audioAnalysisCache = new Map<string, AudioAnalysisData | null>();
@@ -435,9 +453,9 @@ const getAudioAnalysisForTrack = async (uri: string): Promise<AudioAnalysisData 
 const setDynamicBackgroundAnimationSpeed = (speed: number) => {
   KawarpMap.forEach((kawarpInstance) => {
     void kawarpInstance.setOptions({
-      animationSpeed: speed
-    })
-  })
+      animationSpeed: speed,
+    });
+  });
 };
 
 const resetDynamicBackgroundAnimationSpeed = () => {
@@ -480,7 +498,9 @@ const reapplyPageBackground = () => {
     npvKawarp.dispose();
     KawarpMap.delete("npvbg");
   }
-  document.querySelectorAll<HTMLElement>(".npv-dynamic-bg, .spicy-npv-bg").forEach((el) => el.remove());
+  document
+    .querySelectorAll<HTMLElement>(".npv-dynamic-bg, .spicy-npv-bg")
+    .forEach((el) => el.remove());
 
   void ApplyDynamicBackground(contentBox, "lpagebg");
 };
@@ -547,7 +567,7 @@ Global.Event.listen("playback:progress", async (e) => {
 
   KawarpMap.forEach((kawarpInstance) => {
     void kawarpInstance.setOptions({
-      animationSpeed: speedMultiplier
-    })
-  })
-})
+      animationSpeed: speedMultiplier,
+    });
+  });
+});

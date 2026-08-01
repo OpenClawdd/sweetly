@@ -125,9 +125,21 @@ export default function LyricsDBPanel({ onUploadClick }: LyricsDBPanelProps) {
           ))
         ) : filtered.length === 0 ? (
           <div className="sl-ldb-empty">
-            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path d="M20 8v14M20 27.5v1" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              <circle cx="20" cy="20" r="16.5" stroke="currentColor" strokeWidth="2"/>
+            <svg
+              width="40"
+              height="40"
+              viewBox="0 0 40 40"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path
+                d="M20 8v14M20 27.5v1"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <circle cx="20" cy="20" r="16.5" stroke="currentColor" strokeWidth="2" />
             </svg>
             <p>{query.trim() ? "No matching entries" : "No lyrics saved yet"}</p>
           </div>

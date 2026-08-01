@@ -63,9 +63,9 @@ export function ApplyLineLyrics(data: LyricsData, UseRomanized: boolean = false)
     return;
   }
 
-  const hasOppositeAligned = data.Content.some(item => item.OppositeAligned === true);
+  const hasOppositeAligned = data.Content.some((item) => item.OppositeAligned === true);
   LyricsContainer.classList.toggle("HasDuetLines", hasOppositeAligned);
-  const hasRtlLines = data.Content.some(line => isRtl(line.Text));
+  const hasRtlLines = data.Content.some((line) => isRtl(line.Text));
   LyricsContainer.classList.toggle("HasRtlLines", hasRtlLines);
 
   LyricsContainer.setAttribute("data-lyrics-type", "Line");
@@ -219,8 +219,7 @@ export function ApplyLineLyrics(data: LyricsData, UseRomanized: boolean = false)
         HTMLElement: musicalLine,
         StartTime: ConvertTime(line.EndTime),
         EndTime: ConvertTime(arr[index + 1].StartTime),
-        TotalTime:
-          ConvertTime(arr[index + 1].StartTime) - ConvertTime(line.EndTime),
+        TotalTime: ConvertTime(arr[index + 1].StartTime) - ConvertTime(line.EndTime),
         DotLine: true,
       });
 
@@ -243,7 +242,10 @@ export function ApplyLineLyrics(data: LyricsData, UseRomanized: boolean = false)
       const dotPadding = getInterludeTimePadding() / 3;
       const dot1EndTime = Math.max(gapStartTime, gapStartTime + baseDotTime + dotPadding);
       const dot2EndTime = Math.max(dot1EndTime, gapStartTime + baseDotTime * 2 + dotPadding * 2);
-      const dot3EndTime = Math.max(dot2EndTime, gapStartTime + totalTime + getInterludeTimePadding());
+      const dot3EndTime = Math.max(
+        dot2EndTime,
+        gapStartTime + totalTime + getInterludeTimePadding()
+      );
 
       musicalDots1.classList.add("word");
       musicalDots1.classList.add("dot");

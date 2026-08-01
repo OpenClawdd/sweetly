@@ -53,13 +53,19 @@ describe("wordTimingsUsable", () => {
     // wipe_yo_nose: ~48% of words either crammed or stuck.
     const good = run(20, 0.3);
     const crammed = run(15, 0.05, 6);
-    const stuck: [number, number][] = [[8, 10.5], [10.5, 13]];
+    const stuck: [number, number][] = [
+      [8, 10.5],
+      [10.5, 13],
+    ];
     const data = { Type: "Syllable", Content: [line(good), line(crammed), line(stuck)] };
     expect(wordTimingsUsable(data)).toBe(false);
   });
 
   test("accepts a handful of short words in an otherwise sound file", () => {
-    const data = { Type: "Syllable", Content: [line(run(30, 0.3)), line([...run(2, 0.05, 9), ...run(8, 0.28, 10)])] };
+    const data = {
+      Type: "Syllable",
+      Content: [line(run(30, 0.3)), line([...run(2, 0.05, 9), ...run(8, 0.28, 10)])],
+    };
     expect(wordTimingsUsable(data)).toBe(true);
   });
 

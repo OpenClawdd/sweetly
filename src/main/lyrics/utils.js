@@ -7,10 +7,16 @@ export const SEARCH_UA =
 export function parseTTMLTime(ts) {
   if (!ts) return 0;
   if (typeof ts === "number") return ts;
-  const clean = String(ts).replace(/s$/i, "").replace(/^['"]+|['"]+$/g, "").trim();
+  const clean = String(ts)
+    .replace(/s$/i, "")
+    .replace(/^['"]+|['"]+$/g, "")
+    .trim();
   if (!clean) return 0;
   const parts = clean.split(":");
-  if (parts.length === 3) return parseFloat(parts[0] || 0) * 3600 + parseFloat(parts[1] || 0) * 60 + parseFloat(parts[2] || 0);
+  if (parts.length === 3)
+    return (
+      parseFloat(parts[0] || 0) * 3600 + parseFloat(parts[1] || 0) * 60 + parseFloat(parts[2] || 0)
+    );
   if (parts.length === 2) return parseFloat(parts[0] || 0) * 60 + parseFloat(parts[1] || 0);
   return parseFloat(clean) || 0;
 }
@@ -110,9 +116,7 @@ export function wordTimingsUsable(data) {
   if (durations.length < MIN_WORD_SAMPLE) return true;
 
   const wordLevel = durations.length / lines >= WORD_LEVEL_RATIO;
-  const bad = durations.filter(
-    (d) => d <= CRAMMED_WORD || (wordLevel && d >= STUCK_WORD),
-  ).length;
+  const bad = durations.filter((d) => d <= CRAMMED_WORD || (wordLevel && d >= STUCK_WORD)).length;
   return bad / durations.length <= MAX_BAD_WORD_SHARE;
 }
 
@@ -206,7 +210,10 @@ export function toLineAnchors(data) {
     const lead = line?.Lead;
     if (!lead?.Syllables?.length) continue;
 
-    const text = lead.Syllables.map((s) => s?.Text ?? "").join(" ").replace(/\s+/g, " ").trim();
+    const text = lead.Syllables.map((s) => s?.Text ?? "")
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
     if (!text) continue;
 
     const start = Number(lead.StartTime);

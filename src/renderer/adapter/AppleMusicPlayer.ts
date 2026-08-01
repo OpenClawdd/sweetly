@@ -64,7 +64,10 @@ function trackId(): string | undefined {
   const track = getMusicState().track;
   if (!track) return undefined;
   const slug = (s: string) =>
-    s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
   return `${slug(track.artistCleaned)}--${slug(track.nameCleaned)}`;
 }
 
@@ -113,7 +116,7 @@ const InertPlaybar = (() => {
       icon: string,
       onClick: (button: Button) => void = () => {},
       disabled = false,
-      active = false,
+      active = false
     ) {
       this.element = document.createElement("button");
       this.iconElement = document.createElement("span");
@@ -195,7 +198,7 @@ export const SpotifyPlayer = {
   GetCover: (_size?: CoverSizes): string | undefined => artworkUrl || PLACEHOLDER,
   GetCoverFrom: (
     size: CoverSizes,
-    source: Array<{ url: string; label: string }>,
+    source: Array<{ url: string; label: string }>
   ): string | undefined => {
     if (source?.length > 0) {
       return source.find((cover) => cover.label === size)?.url ?? PLACEHOLDER;
@@ -209,9 +212,7 @@ export const SpotifyPlayer = {
   GetArtists: (): Artist[] | undefined => {
     const track = getMusicState().track;
     if (!track) return undefined;
-    return [
-      { type: "artist", name: track.artist, uri: `apple:artist:${track.artistCleaned}` },
-    ];
+    return [{ type: "artist", name: track.artist, uri: `apple:artist:${track.artistCleaned}` }];
   },
   GetUri: (): string | undefined => {
     const id = trackId();

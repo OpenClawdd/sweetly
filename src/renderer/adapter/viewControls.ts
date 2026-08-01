@@ -72,7 +72,8 @@ function installDelegation(): void {
       console.log(
         "[Sweetly] controls: click:",
         (target as HTMLElement | null)?.tagName,
-        "-> control:", control?.id ?? "(none)",
+        "-> control:",
+        control?.id ?? "(none)"
       );
       if (!control) return;
 
@@ -89,7 +90,7 @@ function installDelegation(): void {
         console.error("[Sweetly] controls: action threw:", control.id, err);
       }
     },
-    true,
+    true
   );
 }
 

@@ -25,10 +25,26 @@ export default function InterfaceSection({ query, sectionFilter }: Props) {
 
   if (sectionFilter !== "All" && sectionFilter !== SECTION_NAME) return null;
 
-  const r2 = matches(query, "Lock Media Box Size in Compact Mode", "Prevent the media box from resizing when Forced Compact Mode is active.");
-  const r3 = matches(query, "Disable Popup Lyrics Window", "Prevent lyrics from opening in a floating popup window.");
-  const r4 = matches(query, "Lyrics Controls Position", "Where the lyrics view controls (play, scroll, etc.) appear.");
-  const r5 = matches(query, "Timeline Outside Media Box", "Display the playback timeline outside the media box, in the NowBar header. Stays inside the media box in Compact Mode or PIP.");
+  const r2 = matches(
+    query,
+    "Lock Media Box Size in Compact Mode",
+    "Prevent the media box from resizing when Forced Compact Mode is active."
+  );
+  const r3 = matches(
+    query,
+    "Disable Popup Lyrics Window",
+    "Prevent lyrics from opening in a floating popup window."
+  );
+  const r4 = matches(
+    query,
+    "Lyrics Controls Position",
+    "Where the lyrics view controls (play, scroll, etc.) appear."
+  );
+  const r5 = matches(
+    query,
+    "Timeline Outside Media Box",
+    "Display the playback timeline outside the media box, in the NowBar header. Stays inside the media box in Compact Mode or PIP."
+  );
 
   if (!r2 && !r3 && !r4 && !r5) return null;
 
@@ -46,11 +62,11 @@ export default function InterfaceSection({ query, sectionFilter }: Props) {
       )}
 
       {r3 && (
-        <Row label="Disable Popup Lyrics Window" description="Prevent lyrics from opening in a floating popup window.">
-          <Toggle
-            checked={!popupLyricsAllowed}
-            onChange={(v) => $popupLyricsAllowed.set(!v)}
-          />
+        <Row
+          label="Disable Popup Lyrics Window"
+          description="Prevent lyrics from opening in a floating popup window."
+        >
+          <Toggle checked={!popupLyricsAllowed} onChange={(v) => $popupLyricsAllowed.set(!v)} />
         </Row>
       )}
 

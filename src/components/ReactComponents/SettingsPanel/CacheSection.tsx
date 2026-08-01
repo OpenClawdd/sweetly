@@ -16,9 +16,21 @@ interface Props {
 export default function CacheSection({ query, sectionFilter }: Props) {
   if (sectionFilter !== "All" && sectionFilter !== SECTION_NAME) return null;
 
-  const r1 = matches(query, "Clear All Caches for Current Song", "Remove all cached lyrics data for the currently playing track.");
-  const r2 = matches(query, "Clear Stored Lyrics Cache", "Delete lyrics that have been cached for up to 3 days.");
-  const r3 = matches(query, "Clear Current Song from Internal State", "Remove the current song's lyrics from the in-memory state only.");
+  const r1 = matches(
+    query,
+    "Clear All Caches for Current Song",
+    "Remove all cached lyrics data for the currently playing track."
+  );
+  const r2 = matches(
+    query,
+    "Clear Stored Lyrics Cache",
+    "Delete lyrics that have been cached for up to 3 days."
+  );
+  const r3 = matches(
+    query,
+    "Clear Current Song from Internal State",
+    "Remove the current song's lyrics from the in-memory state only."
+  );
 
   if (!r1 && !r2 && !r3) return null;
 
@@ -38,7 +50,10 @@ export default function CacheSection({ query, sectionFilter }: Props) {
       )}
 
       {r2 && (
-        <Row label="Clear Stored Lyrics Cache" description="Delete lyrics that have been cached for up to 3 days.">
+        <Row
+          label="Clear Stored Lyrics Cache"
+          description="Delete lyrics that have been cached for up to 3 days."
+        >
           <button className="sl-sp-btn" onClick={() => RemoveLyricsCache(true)}>
             Clear Cache
           </button>

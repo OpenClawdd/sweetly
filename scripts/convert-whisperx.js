@@ -5,7 +5,9 @@ import { customKey } from "../src/main/lyrics/customKey.js";
 
 const args = process.argv.slice(2);
 if (args.length < 3) {
-  console.log("Usage: node scripts/convert-whisperx.js <whisperx-json-file> <Track Name> <Artist Name>");
+  console.log(
+    "Usage: node scripts/convert-whisperx.js <whisperx-json-file> <Track Name> <Artist Name>"
+  );
   process.exit(1);
 }
 
@@ -73,4 +75,6 @@ const outPath = path.join(customDir, `${customKey(trackName, artistName)}.ttml`)
 fs.writeFileSync(outPath, ttml, "utf8");
 console.log("\n✅ SUCCESS! Converted WhisperX JSON -> Sweetly Word-Level TTML!");
 console.log("📁 Saved to:", outPath);
-console.log(`🎵 Sweetly will now auto-sync lyrics whenever "${trackName}" by "${artistName}" plays in Apple Music!\n`);
+console.log(
+  `🎵 Sweetly will now auto-sync lyrics whenever "${trackName}" by "${artistName}" plays in Apple Music!\n`
+);

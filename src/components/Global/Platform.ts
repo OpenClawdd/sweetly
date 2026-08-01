@@ -36,10 +36,12 @@ const GetSpotifyAccessToken = (): Promise<string> => {
     const timeUntilRefresh = tokenProviderResponse.expiresAtTime - Date.now();
     if (timeUntilRefresh <= 2) {
       tokenProviderResponse = undefined;
-      accessTokenPromise = new Promise((resolve) => setTimeout(resolve, timeUntilRefresh)).then(() => {
-        accessTokenPromise = undefined;
-        return GetSpotifyAccessToken();
-      });
+      accessTokenPromise = new Promise((resolve) => setTimeout(resolve, timeUntilRefresh)).then(
+        () => {
+          accessTokenPromise = undefined;
+          return GetSpotifyAccessToken();
+        }
+      );
       return accessTokenPromise;
     }
   }
@@ -78,7 +80,7 @@ const Platform = {
   GetSpotifyAccessToken,
   get SpotifyVersion(): number[] {
     return Spicetify.Platform.version.split(".").map((i) => Number.parseInt(i, 10));
-  }
+  },
 };
 
 export default Platform;

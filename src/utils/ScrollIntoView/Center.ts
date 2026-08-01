@@ -9,9 +9,7 @@ export default function ScrollIntoCenterView(
   // only container-relative metrics to avoid layout thrashing.
   const elementOffsetTop = element.offsetTop;
   const targetScrollTop =
-    elementOffsetTop -
-    (container.clientHeight / 2 - element.clientHeight / 2) -
-    offset; // Apply the offset
+    elementOffsetTop - (container.clientHeight / 2 - element.clientHeight / 2) - offset; // Apply the offset
 
   const startScrollTop = container.scrollTop;
   const distance = targetScrollTop - startScrollTop;
@@ -73,9 +71,7 @@ export function ScrollIntoCenterViewCSS(
   // Calculate the target position (centered) using container-relative metrics
   const elementOffsetTop = element.offsetTop;
   const targetScrollTop =
-    elementOffsetTop -
-    (container.clientHeight / 2 - element.clientHeight / 2) -
-    offset;
+    elementOffsetTop - (container.clientHeight / 2 - element.clientHeight / 2) - offset;
 
   // Toggle instant scroll mode if needed
   if (instantScroll) {

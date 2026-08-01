@@ -25,7 +25,6 @@ export interface QueryResultGetter {
 
 const queryLogger = new Logger("API Query");
 
-
 export async function Query(
   queries: Query[],
   headers: Record<string, string> = {}
@@ -78,7 +77,11 @@ export async function Query(
         queryLogger.debug("Attempting to retrieve query result for operationId", operationId);
         const result = results.get(operationId);
         if (!result) {
-          queryLogger.warn("Query result not found for operationId", operationId, Array.from(results.keys()));
+          queryLogger.warn(
+            "Query result not found for operationId",
+            operationId,
+            Array.from(results.keys())
+          );
         } else {
           queryLogger.debug("Query result retrieved for operationId", operationId, result);
         }

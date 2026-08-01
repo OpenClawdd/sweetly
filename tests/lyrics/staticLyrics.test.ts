@@ -30,10 +30,16 @@ async function fetchWith(data: unknown) {
   setMusicStateForTest({
     status: "playing",
     track: {
-      name: "T", nameCleaned: "T", artist: "A", artistCleaned: "A",
-      album: "Al", duration: 100, position: 0,
+      name: "T",
+      nameCleaned: "T",
+      artist: "A",
+      artistCleaned: "A",
+      album: "Al",
+      duration: 100,
+      position: 0,
     },
-    shuffle: false, repeat: "off",
+    shuffle: false,
+    repeat: "off",
   } as any);
   return mod.fetchLyricsForCurrentTrack();
 }
@@ -87,7 +93,11 @@ describe("static (unsynced) lyrics shaping", () => {
   it("leaves synced payloads untouched", async () => {
     const [content] = await fetchWith({
       Type: "Syllable",
-      Content: [{ Lead: { StartTime: 1, EndTime: 2, Syllables: [{ Text: "x", StartTime: 1, EndTime: 2 }] } }],
+      Content: [
+        {
+          Lead: { StartTime: 1, EndTime: 2, Syllables: [{ Text: "x", StartTime: 1, EndTime: 2 }] },
+        },
+      ],
     });
 
     expect((content as any).Lines).toBeUndefined();

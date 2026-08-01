@@ -14,7 +14,7 @@ async function fetchPage(url, extraHeaders = {}) {
     const res = await fetch(url, {
       headers: {
         "User-Agent": SEARCH_UA,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
         ...extraHeaders,
       },
@@ -36,10 +36,15 @@ export async function scrapeSpotifySearch(query, artistName = "") {
 
   // 1. Check MusicBrainz for direct Spotify track relations
   try {
-    const mbQuery = artistName ? `recording:"${query}" AND artist:"${artistName}"` : `recording:"${query}"`;
-    const mbRes = await fetch(`https://musicbrainz.org/ws/2/recording/?query=${encodeURIComponent(mbQuery)}&fmt=json`, {
-      headers: { "User-Agent": MUSICBRAINZ_UA },
-    });
+    const mbQuery = artistName
+      ? `recording:"${query}" AND artist:"${artistName}"`
+      : `recording:"${query}"`;
+    const mbRes = await fetch(
+      `https://musicbrainz.org/ws/2/recording/?query=${encodeURIComponent(mbQuery)}&fmt=json`,
+      {
+        headers: { "User-Agent": MUSICBRAINZ_UA },
+      }
+    );
     if (mbRes.ok) {
       const mbData = await mbRes.json();
       for (const rec of mbData.recordings || []) {
@@ -59,9 +64,12 @@ export async function scrapeSpotifySearch(query, artistName = "") {
   const encoded = encodeURIComponent(query);
 
   // 2. Check DuckDuckGo HTML search for site:open.spotify.com/track
-  const ddgHtml = await fetchPage(`https://html.duckduckgo.com/html/?q=${encodeURIComponent("site:open.spotify.com/track " + query)}`, {
-    "Referer": "https://html.duckduckgo.com/",
-  });
+  const ddgHtml = await fetchPage(
+    `https://html.duckduckgo.com/html/?q=${encodeURIComponent("site:open.spotify.com/track " + query)}`,
+    {
+      Referer: "https://html.duckduckgo.com/",
+    }
+  );
   if (ddgHtml) {
     const ddgMatch = ddgHtml.match(/open\.spotify\.com\/track\/([A-Za-z0-9]{22})/);
     if (ddgMatch) {
@@ -145,7 +153,11 @@ export async function fetchSpicyLyricsData(spotifyTrackId, accessToken = null) {
       }),
     });
     if (!res.ok) {
-      console.log("[Sweetly-Main] SpicyLyrics API HTTP", res.status, "(falling through to BiniLyrics/LRCLIB)");
+      console.log(
+        "[Sweetly-Main] SpicyLyrics API HTTP",
+        res.status,
+        "(falling through to BiniLyrics/LRCLIB)"
+      );
       return null;
     }
 
@@ -161,7 +173,7 @@ export async function fetchSpicyLyricsData(spotifyTrackId, accessToken = null) {
 
     if (result.httpStatus === 401) {
       console.log(
-        "[Sweetly-Main] SpicyLyrics API needs a Spotify sign-in — run `node scripts/spotify-login.mjs`",
+        "[Sweetly-Main] SpicyLyrics API needs a Spotify sign-in — run `node scripts/spotify-login.mjs`"
       );
       return null;
     }

@@ -7,6 +7,7 @@ project, please report it privately using GitHub's **Private Vulnerability
 Reporting** feature on this repository, rather than opening a public issue.
 
 Please include:
+
 - A clear description of the issue
 - Steps to reproduce (if applicable)
 - Potential impact

@@ -3,7 +3,6 @@ import {
   BrowserWindow,
   globalShortcut,
   ipcMain,
-  screen,
   session,
   Menu,
   Tray,
@@ -44,7 +43,6 @@ let mainWindow = null;
 let stopPoll = null;
 let tray = null;
 
-let isMaximized = false;
 let normalBounds = null;
 
 let lastSentStatus = null;
@@ -59,7 +57,7 @@ let currentPollInterval = NORMAL_POLL;
 function getPollInterval(state) {
   const track = state?.track;
   let next = NORMAL_POLL;
-  if (track && track.duration && track.position) {
+  if (state?.status === "playing" && track && track.duration && track.position) {
     if (track.position >= track.duration || isAutomixLikely(track.position, track.duration)) {
       next = AUTOMIX_POLL;
     }
@@ -211,7 +209,6 @@ async function toggleFullscreen() {
     normalBounds = mainWindow.getBounds();
   }
   mainWindow.setFullScreen(goingFullscreen);
-  isMaximized = goingFullscreen;
 
   // A frameless, transparent window occasionally comes back from fullscreen
   // with stale bounds; restore what we captured on the way in.

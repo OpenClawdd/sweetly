@@ -18,9 +18,9 @@ function saveUiStateBlob(obj: Record<string, any>) {
 
 function migrateUiStateKeys(blob: Record<string, any>): Record<string, any> {
   const renames: Record<string, string> = {
-    "IsNowBarOpen": "isNowBarOpen",
-    "NowBarSide": "nowBarSide",
-    "ForceCompactMode": "forceCompactMode",
+    IsNowBarOpen: "isNowBarOpen",
+    NowBarSide: "nowBarSide",
+    ForceCompactMode: "forceCompactMode",
     "previous-version": "previousVersion",
   };
   let changed = false;

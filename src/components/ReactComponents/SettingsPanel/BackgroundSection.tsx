@@ -23,14 +23,21 @@ export default function BackgroundSection({ query, sectionFilter }: Props) {
 
   if (sectionFilter !== "All" && sectionFilter !== SECTION_NAME) return null;
 
-  const r1 = matches(query, "Static Background", "Pin the background to a fixed image or color instead of animating it.");
-  const r2 = matches(query, "Display Dynamic Background in Now Playing View", "Show the animated background in the Now Playing panel.");
+  const r1 = matches(
+    query,
+    "Static Background",
+    "Pin the background to a fixed image or color instead of animating it."
+  );
+  const r2 = matches(
+    query,
+    "Display Dynamic Background in Now Playing View",
+    "Show the animated background in the Now Playing panel."
+  );
   // Only image-based static modes have something to blur — "color" paints a gradient,
   // and "off" leaves the animated background in charge.
   const blurApplies = staticBackgroundMode !== "off" && staticBackgroundMode !== "color";
   const r3 =
-    blurApplies &&
-    matches(query, "Background Blur", "Soften the static background image.");
+    blurApplies && matches(query, "Background Blur", "Soften the static background image.");
 
   if (!r1 && !r2 && !r3) return null;
 
@@ -39,7 +46,10 @@ export default function BackgroundSection({ query, sectionFilter }: Props) {
       <SectionTitle>Background</SectionTitle>
 
       {r1 && (
-        <Row label="Static Background" description="Pin the background to a fixed image or color instead of animating it.">
+        <Row
+          label="Static Background"
+          description="Pin the background to a fixed image or color instead of animating it."
+        >
           <Select
             value={staticBackgroundMode}
             options={bgModeOptions}

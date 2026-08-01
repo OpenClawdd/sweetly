@@ -1,8 +1,8 @@
 /**
-* Converts any lyrics format to Static Lyrics format
-* @param {Object} lyrics - The lyrics object in any supported format
-* @return {Object} - Lyrics in Static format
-*/
+ * Converts any lyrics format to Static Lyrics format
+ * @param {Object} lyrics - The lyrics object in any supported format
+ * @return {Object} - Lyrics in Static format
+ */
 
 // --- Types ---
 export type Syllable = {
@@ -97,10 +97,10 @@ export function convertToStaticLyrics(lyrics: AnyLyrics): StaticLyrics {
 }
 
 /**
-* Converts Syllable format to Static format
-* @param {SyllableLyrics} syllableLyrics - Lyrics in Syllable format
-* @return {StaticLine[]} - Array of Line objects for Static format
-*/
+ * Converts Syllable format to Static format
+ * @param {SyllableLyrics} syllableLyrics - Lyrics in Syllable format
+ * @return {StaticLine[]} - Array of Line objects for Static format
+ */
 function convertSyllableToStatic(syllableLyrics: SyllableLyrics): StaticLine[] {
   const lines: StaticLine[] = [];
 
@@ -157,10 +157,10 @@ function convertSyllableToStatic(syllableLyrics: SyllableLyrics): StaticLine[] {
 }
 
 /**
-* Converts any lyrics format to Line Lyrics format
-* @param {AnyLyrics} lyrics - The lyrics object in any supported format
-* @return {LineLyrics} - Lyrics in Line format
-*/
+ * Converts any lyrics format to Line Lyrics format
+ * @param {AnyLyrics} lyrics - The lyrics object in any supported format
+ * @return {LineLyrics} - Lyrics in Line format
+ */
 export function convertToLineLyrics(lyrics: AnyLyrics): LineLyrics {
   // Clone input to avoid modifying original
   const input = JSON.parse(JSON.stringify(lyrics));
@@ -195,10 +195,10 @@ export function convertToLineLyrics(lyrics: AnyLyrics): LineLyrics {
 }
 
 /**
-* Converts Syllable format to Line format
-* @param {SyllableLyrics} syllableLyrics - Lyrics in Syllable format
-* @return {LineVocalContent[]} - Array of Line objects for Line format
-*/
+ * Converts Syllable format to Line format
+ * @param {SyllableLyrics} syllableLyrics - Lyrics in Syllable format
+ * @return {LineVocalContent[]} - Array of Line objects for Line format
+ */
 function convertSyllableToLine(syllableLyrics: SyllableLyrics): LineVocalContent[] {
   const content: LineVocalContent[] = [];
 
@@ -259,10 +259,10 @@ function convertSyllableToLine(syllableLyrics: SyllableLyrics): LineVocalContent
 }
 
 /**
-* Converts Line format to Static format
-* @param {LineLyrics} lineLyrics - Lyrics in Line format
-* @return {StaticLine[]} - Array of Line objects for Static format
-*/
+ * Converts Line format to Static format
+ * @param {LineLyrics} lineLyrics - Lyrics in Line format
+ * @return {StaticLine[]} - Array of Line objects for Static format
+ */
 function convertLineToStatic(lineLyrics: LineLyrics): StaticLine[] {
   const lines: StaticLine[] = [];
 
@@ -284,13 +284,11 @@ export function determineFormat(lyrics: any): "Syllable" | "Line" | "Static" | "
   if (lyrics.Type === "Line") return "Line";
   if (lyrics.Type === "Static") return "Static";
 
-  if (lyrics.Content && lyrics.Content[0]?.Type === "Vocal" &&
-    lyrics.Content[0]?.Lead?.Syllables) {
+  if (lyrics.Content && lyrics.Content[0]?.Type === "Vocal" && lyrics.Content[0]?.Lead?.Syllables) {
     return "Syllable";
   }
 
-  if (lyrics.Content && lyrics.Content[0]?.Type === "Vocal" &&
-    lyrics.Content[0]?.Text) {
+  if (lyrics.Content && lyrics.Content[0]?.Type === "Vocal" && lyrics.Content[0]?.Text) {
     return "Line";
   }
 
@@ -300,7 +298,6 @@ export function determineFormat(lyrics: any): "Syllable" | "Line" | "Static" | "
 
   return "Unknown";
 }
-
 
 export function processStaticLyricsToClassicFormat(sourceLyrics: StaticLyrics) {
   const lyrics = { ...sourceLyrics };

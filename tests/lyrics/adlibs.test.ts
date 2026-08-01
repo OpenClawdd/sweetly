@@ -17,7 +17,10 @@ function seg(words: string[]) {
 
 /** Word text out of a run of `<span ...>word </span>` elements. */
 function words(html: string) {
-  return (html.match(/>([^<>]+)</g) || []).map((s) => s.slice(1, -1).trim()).join(" ").trim();
+  return (html.match(/>([^<>]+)</g) || [])
+    .map((s) => s.slice(1, -1).trim())
+    .join(" ")
+    .trim();
 }
 
 /**

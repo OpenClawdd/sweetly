@@ -166,7 +166,7 @@ export function ClearLyricsContentArrays() {
   Lyrics.TimeSetter(progress);
   Lyrics.Animate(progress);
 }).Start(); */
-/* 
+/*
 let lastLyric = "";
 
 const logLyric = (lyric: string) => {
@@ -303,9 +303,7 @@ export function addLinesEvListener() {
 
   LinesEvListenerMaid = new Maid();
 
-  const el = PageContainer?.querySelector<HTMLElement>(
-    ".LyricsContainer .LyricsContent"
-  );
+  const el = PageContainer?.querySelector<HTMLElement>(".LyricsContainer .LyricsContent");
   if (!el) return;
 
   // Add event listener and store a reference to the handler function
@@ -321,9 +319,7 @@ export function removeLinesEvListener() {
   if (!LinesEvListenerExists) return;
   LinesEvListenerExists = false;
 
-  const el = PageContainer?.querySelector<HTMLElement>(
-    ".LyricsContainer .LyricsContent"
-  );
+  const el = PageContainer?.querySelector<HTMLElement>(".LyricsContainer .LyricsContent");
   if (!el) return;
 
   el.removeEventListener("click", LinesEvListener);

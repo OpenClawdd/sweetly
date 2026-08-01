@@ -36,7 +36,7 @@ async function get(uri: string): Promise<any | null> {
     }
 
     const result = "Result" in parsed ? (parsed as Record<string, unknown>).Result : undefined;
-    return (result && typeof result === "object" && result !== null)
+    return result && typeof result === "object" && result !== null
       ? Object.assign({}, result as object, { source: "ldb" })
       : null;
   } catch (error) {

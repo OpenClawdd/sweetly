@@ -55,11 +55,7 @@ function normalizeProgress(position: number, isPlaying: boolean): number {
 
   // Reset on first read, track change, or while paused — the predicted clock
   // only makes sense while actively playing.
-  if (
-    !predictedProgress ||
-    predictedProgress.TrackId !== trackId ||
-    !isPlaying
-  ) {
+  if (!predictedProgress || predictedProgress.TrackId !== trackId || !isPlaying) {
     predictedProgress = { TrackId: trackId, Position: measured, UpdatedAt: now };
     return measured;
   }

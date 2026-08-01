@@ -17,11 +17,7 @@ interface _SyllableLead {
   [key: string]: any;
 }
 
-function getElementStatus(
-  currentTime: number,
-  startTime: number,
-  endTime: number
-): ElementStatus {
+function getElementStatus(currentTime: number, startTime: number, endTime: number): ElementStatus {
   if (currentTime < startTime) return "NotSung";
   if (currentTime >= endTime) return "Sung";
   return "Active";

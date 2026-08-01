@@ -28,7 +28,14 @@ function showUpdateDismissWarning() {
       <div style={{ fontSize: "var(--text-headline-size)", fontWeight: 600, lineHeight: 1.3 }}>
         Continuing without updating?
       </div>
-      <div style={{ fontSize: "var(--text-caption-size)", opacity: 0.75, marginTop: "2px", lineHeight: 1.4 }}>
+      <div
+        style={{
+          fontSize: "var(--text-caption-size)",
+          opacity: 0.75,
+          marginTop: "2px",
+          lineHeight: 1.4,
+        }}
+      >
         Some lyrics sources and features are only available on the latest version.
       </div>
     </div>,
@@ -39,8 +46,12 @@ function showUpdateDismissWarning() {
         onClick: startUpdate,
       },
       position: "bottom-right",
-      onDismiss: () => { WarningInFlight = false; },
-      onAutoClose: () => { WarningInFlight = false; },
+      onDismiss: () => {
+        WarningInFlight = false;
+      },
+      onAutoClose: () => {
+        WarningInFlight = false;
+      },
     }
   );
 }
@@ -98,26 +109,30 @@ function showUpdateModal(currentVersion: any, latestVersion: any) {
         <div className="uc-version-row">
           <span className="uc-ver">{currentVersion?.Text || "Current"}</span>
           <span className="uc-arrow" aria-hidden="true">
-            <svg width="14" height="10" viewBox="0 0 14 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M1 5h12M9 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg
+              width="14"
+              height="10"
+              viewBox="0 0 14 10"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M1 5h12M9 1l4 4-4 4"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           </span>
           <span className="uc-ver new">{latestVersion?.Text || "Latest"}</span>
         </div>
 
         <div className="uc-actions">
-          <button
-            type="button"
-            className="btn-quiet"
-            onClick={dismissWithWarning}
-          >
+          <button type="button" className="btn-quiet" onClick={dismissWithWarning}>
             Later
           </button>
-          <button
-            type="button"
-            className="btn-update"
-            onClick={startUpdate}
-          >
+          <button type="button" className="btn-update" onClick={startUpdate}>
             Update now
           </button>
         </div>

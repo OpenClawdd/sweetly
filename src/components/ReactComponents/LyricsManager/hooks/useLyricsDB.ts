@@ -32,25 +32,30 @@ export function useLyricsDB(): UseLyricsDBResult {
     refresh();
   }, [refresh]);
 
-  const remove = useCallback(async (uri: string) => {
-    await LocalLyricsManager.remove(uri);
-    // Only refresh the on-screen lyrics if the deleted entry belongs to the
-    // track that's currently playing. Otherwise we'd wipe the playing track's
-    // lyrics and re-apply the (now deleted) non-playing track's lyrics.
-    if (SpotifyPlayer.GetUri() === uri) {
-      $currentLyricsData.set("");
-      setTimeout(() => {
-        fetchLyrics(uri)
-          .then(ApplyLyrics);
-      }, 25);
-    }
-    await refresh();
-  }, [refresh]);
+  const remove = useCallback(
+    async (uri: string) => {
+      await LocalLyricsManager.remove(uri);
+      // Only refresh the on-screen lyrics if the deleted entry belongs to the
+      // track that's currently playing. Otherwise we'd wipe the playing track's
+      // lyrics and re-apply the (now deleted) non-playing track's lyrics.
+      if (SpotifyPlayer.GetUri() === uri) {
+        $currentLyricsData.set("");
+        setTimeout(() => {
+          fetchLyrics(uri).then(ApplyLyrics);
+        }, 25);
+      }
+      await refresh();
+    },
+    [refresh]
+  );
 
-  const put = useCallback(async (uri: string, ttml: string) => {
-    await LocalLyricsManager.put(uri, ttml);
-    await refresh();
-  }, [refresh]);
+  const put = useCallback(
+    async (uri: string, ttml: string) => {
+      await LocalLyricsManager.put(uri, ttml);
+      await refresh();
+    },
+    [refresh]
+  );
 
   const getRaw = useCallback(async (uri: string) => {
     return LocalLyricsManager.getRaw(uri);

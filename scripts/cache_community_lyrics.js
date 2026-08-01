@@ -16,7 +16,7 @@ export async function cacheTrackTTML(trackName, artistName) {
   try {
     const searchUrl = `https://lyrics-api.binimum.org/search?q=${encodeURIComponent(query)}`;
     const res = await fetch(searchUrl, {
-      headers: { "User-Agent": "SweetlyOverlay/1.0.0", "Accept": "application/json" },
+      headers: { "User-Agent": "SweetlyOverlay/1.0.0", Accept: "application/json" },
     });
     if (!res.ok) {
       console.log(`[CacheTTML] Search failed (${res.status}) for "${query}"`);
@@ -32,7 +32,9 @@ export async function cacheTrackTTML(trackName, artistName) {
       return false;
     }
 
-    console.log(`[CacheTTML] Found word TTML: ${wordMatch.track_name} by ${wordMatch.artist_name} (${wordMatch.lyricsUrl})`);
+    console.log(
+      `[CacheTTML] Found word TTML: ${wordMatch.track_name} by ${wordMatch.artist_name} (${wordMatch.lyricsUrl})`
+    );
     const ttmlRes = await fetch(wordMatch.lyricsUrl, {
       headers: { "User-Agent": "SweetlyOverlay/1.0.0" },
     });

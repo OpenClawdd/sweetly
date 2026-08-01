@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -7,7 +7,10 @@
     <!-- pkgs.spikerko.org serves the romanization engines (Kuromoji, pinyin,
          aromanize, GreekRomanization) that Spicy loads on demand via
          utils/ImportPackage.ts, hence script-src and connect-src. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://pkgs.spikerko.org; style-src 'self' 'unsafe-inline' https://fonts.spikerko.org; font-src 'self' https://fonts.spikerko.org; connect-src 'self' https://open.spotify.com https://api.spotify.com https://api.spicylyrics.org https://pkgs.spikerko.org https://images.spikerko.org https://is1-ssl.mzstatic.com https://*.mzstatic.com https://lrclib.net https://lyrics-api.binimum.org https://lyrics-storage.binimum.org ws://localhost:*; img-src 'self' https://is1-ssl.mzstatic.com https://*.mzstatic.com https://images.spikerko.org data: blob:" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://pkgs.spikerko.org; style-src 'self' 'unsafe-inline' https://fonts.spikerko.org; font-src 'self' https://fonts.spikerko.org; connect-src 'self' https://open.spotify.com https://api.spotify.com https://api.spicylyrics.org https://pkgs.spikerko.org https://images.spikerko.org https://is1-ssl.mzstatic.com https://*.mzstatic.com https://lrclib.net https://lyrics-api.binimum.org https://lyrics-storage.binimum.org ws://localhost:*; img-src 'self' https://is1-ssl.mzstatic.com https://*.mzstatic.com https://images.spikerko.org data: blob:"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sweetly</title>
     <link rel="stylesheet" href="https://fonts.spikerko.org/spicy-lyrics/source.css" />
@@ -16,7 +19,9 @@
       /* Chromium paints an opaque fill behind the vibrancy layer unless every
          ancestor is explicitly transparent. Everything else the UI needs comes
          from Spicy's own stylesheets, imported by main.ts. */
-      html, body, #app {
+      html,
+      body,
+      #app {
         background: transparent !important;
         background-color: transparent !important;
         margin: 0;
@@ -39,7 +44,11 @@
         border-radius: 12px;
       }
       /* Ensure scrollable/interactive areas and buttons remain clickable */
-      button, a, input, select, textarea,
+      button,
+      a,
+      input,
+      select,
+      textarea,
       [role="button"],
       .PlaybackControl,
       .PlaybackControls,

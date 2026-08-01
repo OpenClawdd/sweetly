@@ -24,28 +24,31 @@ export type LyricsData = {
   [key: string]: any;
 };
 
-
 let currentAbortController: AbortController | null = null;
 
 export const cleanupApplyLyricsAbortController = () => {
   if (currentAbortController) {
     currentAbortController.abort();
-    currentAbortController = null
+    currentAbortController = null;
   }
-}
+};
 
 /**
  * Apply lyrics based on their type
  * @param lyrics - The lyrics data to apply
  */
-export default async function ApplyLyrics(lyricsContent: [object | string, number] | null): Promise<void> {
+export default async function ApplyLyrics(
+  lyricsContent: [object | string, number] | null
+): Promise<void> {
   if (!PageContainer) return;
-  PageContainer.querySelector<HTMLElement>(".ContentBox .LyricsContainer")?.classList.remove("Hidden");
+  PageContainer.querySelector<HTMLElement>(".ContentBox .LyricsContainer")?.classList.remove(
+    "Hidden"
+  );
   PageContainer.querySelector<HTMLElement>(".ContentBox")?.classList.remove("LyricsHidden");
   setBlurringLastLine(null);
   if (!lyricsContent) return;
 
-  cleanupApplyLyricsAbortController()
+  cleanupApplyLyricsAbortController();
 
   EmitNotApplyed();
 
@@ -70,43 +73,43 @@ export default async function ApplyLyrics(lyricsContent: [object | string, numbe
       return;
     }
     case "lyrics-not-found": {
-      noticeContent = `We don't have any lyrics for this song`
+      noticeContent = `We don't have any lyrics for this song`;
       break;
     }
     case "dj": {
-      noticeContent = `Viewing lyrics, while using the DJ, is not supported`
+      noticeContent = `Viewing lyrics, while using the DJ, is not supported`;
       break;
     }
     case "unknown-track": {
-      noticeContent = `We could not access the info for this song`
+      noticeContent = `We could not access the info for this song`;
       break;
     }
     case "unknown-error": {
-      noticeContent = `An unknown error happened`
+      noticeContent = `An unknown error happened`;
       break;
     }
     case "offline": {
-      noticeContent = `Please go online to enjoy your lyrics experience!`
+      noticeContent = `Please go online to enjoy your lyrics experience!`;
       break;
     }
     case "status-not-200": {
-      noticeContent = `A server error occurred`
+      noticeContent = `A server error occurred`;
       break;
     }
     case "video-track": {
-      noticeContent = `We currently don't have support for video lyrics`
+      noticeContent = `We currently don't have support for video lyrics`;
       break;
     }
     case "episode-track": {
-      noticeContent = `We currently don't have support for podcast episode lyrics`
+      noticeContent = `We currently don't have support for podcast episode lyrics`;
       break;
     }
     case "mixed-track": {
-      noticeContent = `We currently don't have support for video podcast episode lyrics`
+      noticeContent = `We currently don't have support for video podcast episode lyrics`;
       break;
     }
     case "local-track": {
-      noticeContent = `Lyrics aren't available for local files`
+      noticeContent = `Lyrics aren't available for local files`;
       break;
     }
     default:
@@ -137,8 +140,14 @@ export default async function ApplyLyrics(lyricsContent: [object | string, numbe
     currentNoticeElement.classList.add("LyricsNotice");
     lyricsContainer.appendChild(currentNoticeElement);
 
-    if (!IsCompactMode() && (Fullscreen.IsOpen || Fullscreen.CinemaViewOpen) && (descriptor === "lyrics-not-found" || descriptor === "local-track")) {
-      PageContainer?.querySelector<HTMLElement>(".ContentBox .LyricsContainer")?.classList.add("Hidden");
+    if (
+      !IsCompactMode() &&
+      (Fullscreen.IsOpen || Fullscreen.CinemaViewOpen) &&
+      (descriptor === "lyrics-not-found" || descriptor === "local-track")
+    ) {
+      PageContainer?.querySelector<HTMLElement>(".ContentBox .LyricsContainer")?.classList.add(
+        "Hidden"
+      );
       PageContainer?.querySelector<HTMLElement>(".ContentBox")?.classList.add("LyricsHidden");
     }
 
@@ -150,12 +159,16 @@ export default async function ApplyLyrics(lyricsContent: [object | string, numbe
     // Add click handler to log when the Discord link is clicked
     const discordLink = currentNoticeElement.querySelector("a");
     if (discordLink) {
-      discordLink.addEventListener("click", () => {
-        window.open("https://discord.com/invite/uqgXU5wh8j", "_blank");
-      }, { signal: currentAbortController.signal });
+      discordLink.addEventListener(
+        "click",
+        () => {
+          window.open("https://discord.com/invite/uqgXU5wh8j", "_blank");
+        },
+        { signal: currentAbortController.signal }
+      );
     }
 
-    EmitApply("None", null)
+    EmitApply("None", null);
     return;
   }
 

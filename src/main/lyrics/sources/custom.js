@@ -94,7 +94,7 @@ export function getCustomLyrics(name, artist, trackDuration, opts = {}) {
       console.log(
         "[Sweetly-Main] Custom TTML timings do not cover the track, ignoring file:",
         filePath,
-        `(${parsed.Content.length} lines against a ${Math.round(trackDuration)}s track)`,
+        `(${parsed.Content.length} lines against a ${Math.round(trackDuration)}s track)`
       );
       return null;
     }
@@ -107,12 +107,16 @@ export function getCustomLyrics(name, artist, trackDuration, opts = {}) {
       console.log(
         "[Sweetly-Main] Custom TTML word timings are degenerate, ignoring file:",
         filePath,
-        "(regenerate it with scripts/align_lyrics.py)",
+        "(regenerate it with scripts/align_lyrics.py)"
       );
       return null;
     }
 
-    console.log("[Sweetly-Main] Loaded custom local TTML from disk:", filePath, `(${parsed.Content.length} lines)`);
+    console.log(
+      "[Sweetly-Main] Loaded custom local TTML from disk:",
+      filePath,
+      `(${parsed.Content.length} lines)`
+    );
     return parsed;
   } catch (e) {
     console.log("[Sweetly-Main] Error reading custom TTML:", e.message);

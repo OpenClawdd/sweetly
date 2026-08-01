@@ -5,7 +5,7 @@ export async function fetchBiniLyrics(name, artist) {
   try {
     const q = encodeURIComponent(`${name} ${artist}`);
     const res = await fetch(`https://lyrics-api.binimum.org/search?q=${q}`, {
-      headers: { "User-Agent": SEARCH_UA, "Accept": "application/json" },
+      headers: { "User-Agent": SEARCH_UA, Accept: "application/json" },
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -15,7 +15,12 @@ export async function fetchBiniLyrics(name, artist) {
     const wordMatch = results.find((r) => r.timing_type === "word");
     if (!wordMatch?.lyricsUrl) return null;
 
-    console.log("[Sweetly-Main] BiniLyrics:", wordMatch.track_name, wordMatch.artist_name, wordMatch.timing_type);
+    console.log(
+      "[Sweetly-Main] BiniLyrics:",
+      wordMatch.track_name,
+      wordMatch.artist_name,
+      wordMatch.timing_type
+    );
     const ttmlRes = await fetch(wordMatch.lyricsUrl, {
       headers: { "User-Agent": SEARCH_UA },
     });
@@ -35,7 +40,12 @@ export async function fetchBiniLyrics(name, artist) {
       const pContent = pm[1];
       const pBegin = (pTag.match(/begin="([^"]+)"/) || [])[1];
       const pEnd = (pTag.match(/end="([^"]+)"/) || [])[1];
-      const lead = { StartTime: parseTTMLTime(pBegin || "0"), EndTime: parseTTMLTime(pEnd || pBegin || "0"), Syllables: [], IsBackground: /(?:ttm:)?role="(?:Background|x-bg)"|agent="v(?:[2-9]|1[0-9])"/i.test(pTag) };
+      const lead = {
+        StartTime: parseTTMLTime(pBegin || "0"),
+        EndTime: parseTTMLTime(pEnd || pBegin || "0"),
+        Syllables: [],
+        IsBackground: /(?:ttm:)?role="(?:Background|x-bg)"|agent="v(?:[2-9]|1[0-9])"/i.test(pTag),
+      };
 
       const spanRegex = /<(?:span|sy)\b[^>]*>([\s\S]*?)<\/(?:span|sy)>/g;
       const spanMatches = [];
@@ -76,7 +86,21 @@ export async function fetchBiniLyrics(name, artist) {
       } else {
         const plainText = pContent.replace(/<[^>]+>/g, "").trim();
         if (plainText) {
-          lines.push({ Lead: { StartTime: lead.StartTime, EndTime: lead.EndTime, Syllables: [{ Text: plainText, StartTime: lead.StartTime, EndTime: lead.EndTime, IsPartOfWord: false }] }, OppositeAligned: false });
+          lines.push({
+            Lead: {
+              StartTime: lead.StartTime,
+              EndTime: lead.EndTime,
+              Syllables: [
+                {
+                  Text: plainText,
+                  StartTime: lead.StartTime,
+                  EndTime: lead.EndTime,
+                  IsPartOfWord: false,
+                },
+              ],
+            },
+            OppositeAligned: false,
+          });
         }
       }
     }

@@ -13,18 +13,16 @@ function unwrap(getter: Getter): OpResult {
 }
 
 export async function opCreateSession(spotifyToken: string): Promise<OpResult> {
-  const getter = await Query(
-    [{ operation: OPERATIONS.createSession, variables: {} }],
-    { Authorization: spotifyToken }
-  );
+  const getter = await Query([{ operation: OPERATIONS.createSession, variables: {} }], {
+    Authorization: spotifyToken,
+  });
   return unwrap(getter);
 }
 
 export async function opRefreshSession(tk: string, spotifyToken: string): Promise<OpResult> {
-  const getter = await Query(
-    [{ operation: OPERATIONS.refreshSession, variables: { tk } }],
-    { Authorization: spotifyToken }
-  );
+  const getter = await Query([{ operation: OPERATIONS.refreshSession, variables: { tk } }], {
+    Authorization: spotifyToken,
+  });
   return unwrap(getter);
 }
 

@@ -80,7 +80,8 @@ const Session = {
         },
       ]);
       const versionJob = res.get("0");
-      if (!versionJob || versionJob.httpStatus !== 200 || versionJob.format !== "text") return undefined;
+      if (!versionJob || versionJob.httpStatus !== 200 || versionJob.format !== "text")
+        return undefined;
       const data = versionJob.data;
       return Session.SpicyLyrics.ParseVersion(data);
     },

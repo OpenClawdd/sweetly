@@ -68,9 +68,7 @@ function handleUserScroll(ScrollSimplebar: any | null) {
   if (!isUserScrolling) {
     isUserScrolling = true;
     // Add HideLineBlur class when user starts scrolling
-    const lyricsContent = PageContainer?.querySelector(
-      ".LyricsContainer .LyricsContent"
-    );
+    const lyricsContent = PageContainer?.querySelector(".LyricsContainer .LyricsContent");
     if (lyricsContent) {
       lyricsContent.classList.add("HideLineBlur");
     } else {
@@ -152,13 +150,18 @@ const ScrollTo = (
     // instantScroll is effectively always true in the virtualizer path
     // (we set scrollTop directly), but passing the flag keeps the intent
     // explicit and allows a future smooth-scroll path if needed.
-    scrollLyricsToIndex(lineIndex, type === "Top" ? "start" : "center", instantScroll, type ==="Top" ? (IsPIP ? -50 : -85) : 30);
+    scrollLyricsToIndex(
+      lineIndex,
+      type === "Top" ? "start" : "center",
+      instantScroll,
+      type === "Top" ? (IsPIP ? -50 : -85) : 30
+    );
     return;
   }
   if (type === "Center") {
     ScrollIntoCenterViewCSS(container, element, -30, instantScroll);
   } else if (type === "Top") {
-    ScrollIntoTopViewCSS(container, element, (IsPIP ? 50 : 85), instantScroll);
+    ScrollIntoTopViewCSS(container, element, IsPIP ? 50 : 85, instantScroll);
   }
 };
 
@@ -231,7 +234,8 @@ export function ScrollToActiveLine(ScrollSimplebar: any) {
     ScrollTo(
       container,
       scrollToLine,
-      shouldForceScroll || (lastPosition !== 0 && wasDrasticPositionChange(lastPosition ?? 0, Position)),
+      shouldForceScroll ||
+        (lastPosition !== 0 && wasDrasticPositionChange(lastPosition ?? 0, Position)),
       GetScrollType(),
       forceScrollLineIndex
     );
@@ -417,9 +421,7 @@ export function ScrollToActiveLine(ScrollSimplebar: any) {
         isUserScrolling = false;
         // Remove HideLineBlur class ONLY if we were user scrolling
         //if (wasUserScrolling) {
-        const lyricsContent = PageContainer?.querySelector(
-          ".LyricsContainer .LyricsContent"
-        );
+        const lyricsContent = PageContainer?.querySelector(".LyricsContainer .LyricsContent");
         if (lyricsContent) {
           lyricsContent.classList.remove("HideLineBlur");
         } else {

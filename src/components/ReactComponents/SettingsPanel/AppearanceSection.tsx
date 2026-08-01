@@ -15,7 +15,11 @@ export default function AppearanceSection({ query, sectionFilter }: Props) {
 
   if (sectionFilter !== "All" && sectionFilter !== SECTION_NAME) return null;
 
-  const r1 = matches(query, "Use Default Font", "Disable the custom Sweetly font and fall back to your root font.");
+  const r1 = matches(
+    query,
+    "Use Default Font",
+    "Disable the custom Sweetly font and fall back to your root font."
+  );
 
   if (!r1) return null;
 
@@ -24,7 +28,10 @@ export default function AppearanceSection({ query, sectionFilter }: Props) {
       <SectionTitle>Appearance</SectionTitle>
 
       {r1 && (
-        <Row label="Use System Font" description="Disable the custom Sweetly font and fall back to your system font.">
+        <Row
+          label="Use System Font"
+          description="Disable the custom Sweetly font and fall back to your system font."
+        >
           <Toggle checked={skipSpicyFont} onChange={(v) => $skipSpicyFont.set(v)} />
         </Row>
       )}

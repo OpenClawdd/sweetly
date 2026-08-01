@@ -109,13 +109,13 @@ describe("normaliseLyricsResponse", () => {
 
   test("reports not-found when only artwork came back", () => {
     expect(
-      normaliseLyricsResponse({ data: null, provider: "apple", artworkUrl: "https://x/a.jpg" }),
+      normaliseLyricsResponse({ data: null, provider: "apple", artworkUrl: "https://x/a.jpg" })
     ).toEqual(["lyrics-not-found", 404]);
   });
 
   test("reports unknown-error for a data object with no Type", () => {
     expect(
-      normaliseLyricsResponse({ data: { Content: [] }, provider: "apple", artworkUrl: null }),
+      normaliseLyricsResponse({ data: { Content: [] }, provider: "apple", artworkUrl: null })
     ).toEqual(["unknown-error", 500]);
   });
 
@@ -132,7 +132,7 @@ describe("normaliseLyricsResponse", () => {
 
   test("reports unknown-error when raw TTML fails to parse", () => {
     expect(
-      normaliseLyricsResponse({ data: "<<<junk", provider: "apple", artworkUrl: null }),
+      normaliseLyricsResponse({ data: "<<<junk", provider: "apple", artworkUrl: null })
     ).toEqual(["unknown-error", 500]);
   });
 });

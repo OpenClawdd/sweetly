@@ -32,9 +32,9 @@ const OLD_UI_STATE_KEYS = [
 ];
 
 const OLD_UI_STATE_KEY_RENAMES: Record<string, string> = {
-  "IsNowBarOpen": "isNowBarOpen",
-  "NowBarSide": "nowBarSide",
-  "ForceCompactMode": "forceCompactMode",
+  IsNowBarOpen: "isNowBarOpen",
+  NowBarSide: "nowBarSide",
+  ForceCompactMode: "forceCompactMode",
   "previous-version": "previousVersion",
 };
 
@@ -63,7 +63,8 @@ function hasAnyOldKey(): boolean {
     Spicetify.LocalStorage.get(`${OLD_PREFIX}devMode`) !== null ||
     Spicetify.LocalStorage.get(`${OLD_PREFIX}staticBackground`) !== null ||
     Spicetify.LocalStorage.get(`${OLD_PREFIX}staticBackgroundType`) !== null
-  ) return true;
+  )
+    return true;
   return false;
 }
 
@@ -85,10 +86,10 @@ function migrateData() {
       settings["staticBackgroundMode"] = "off";
     } else {
       const typeMap: Record<string, string> = {
-        "Auto": "auto",
+        Auto: "auto",
         "Artist Header Visual": "artistHeader",
         "Cover Art": "coverArt",
-        "Color": "color",
+        Color: "color",
       };
       settings["staticBackgroundMode"] = typeMap[oldStaticBgType] ?? "auto";
     }
@@ -146,17 +147,39 @@ export function showMigrationModal() {
       reactRoot.render(
         <div className="update-card-wrapper migration-card">
           <div className="udc-icon-wrap">
-            <svg className="udc-migrate-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <ellipse cx="12" cy="5" rx="8" ry="3" stroke="currentColor" strokeWidth="1.75"/>
-              <path d="M4 5v5c0 1.657 3.582 3 8 3s8-1.343 8-3V5" stroke="currentColor" strokeWidth="1.75"/>
-              <path d="M4 10v5c0 1.657 3.582 3 8 3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round"/>
-              <path d="M16 17l2.5 2.5L22 16" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg
+              className="udc-migrate-svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <ellipse cx="12" cy="5" rx="8" ry="3" stroke="currentColor" strokeWidth="1.75" />
+              <path
+                d="M4 5v5c0 1.657 3.582 3 8 3s8-1.343 8-3V5"
+                stroke="currentColor"
+                strokeWidth="1.75"
+              />
+              <path
+                d="M4 10v5c0 1.657 3.582 3 8 3"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+              />
+              <path
+                d="M16 17l2.5 2.5L22 16"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           </div>
 
           <h2 className="uc-title">Settings Migration Required</h2>
           <p className="uc-subtitle udc-desc">
-            Spicy Lyrics has updated its storage format. Your existing settings need to be migrated before you can continue. This only happens once.
+            Spicy Lyrics has updated its storage format. Your existing settings need to be migrated
+            before you can continue. This only happens once.
           </p>
 
           <div className="uc-divider" />
@@ -181,8 +204,21 @@ export function showMigrationModal() {
       reactRoot.render(
         <div className="update-card-wrapper migration-card">
           <div className="udc-icon-wrap">
-            <svg className="udc-migrate-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{ color: "#1db954" }}>
-              <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg
+              className="udc-migrate-svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+              style={{ color: "#1db954" }}
+            >
+              <path
+                d="M5 13l4 4L19 7"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           </div>
 

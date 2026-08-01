@@ -50,8 +50,7 @@ export function ApplyIsByCommunity(data: any, LyricsContainer: HTMLElement): voi
   // Static copy – safe to set as text
   const providedByCommunitySpan = document.createElement("span");
   providedByCommunitySpan.style.opacity = "0.5";
-  providedByCommunitySpan.textContent =
-    "These lyrics have been provided by our community";
+  providedByCommunitySpan.textContent = "These lyrics have been provided by our community";
   songInfoElement.appendChild(providedByCommunitySpan);
 
   const makerUsername = data.TTMLUploadMetadata?.Maker?.username;
@@ -126,7 +125,7 @@ export function ApplyIsByCommunity(data: any, LyricsContainer: HTMLElement): voi
           ...Spicetify.TippyProps,
           content: `View TTML Profile`,
         })
-      )
+      );
     }
     uploaderSpan.addEventListener(
       "click",
@@ -148,7 +147,7 @@ export function ApplyIsByCommunity(data: any, LyricsContainer: HTMLElement): voi
           ...Spicetify.TippyProps,
           content: `View TTML Profile`,
         })
-      )
+      );
     }
     makerSpan.addEventListener(
       "click",

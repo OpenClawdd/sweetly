@@ -81,7 +81,10 @@ function scoreSong(song, name, artist, album) {
 
   // A remix/DJ-mix cut has different timings than the album version.
   const rawName = String(a.name || "");
-  if (/\[(mixed|remix)\]|\bdj mix\b/i.test(`${rawName} ${a.albumName || ""}`) && !/mix|remix/i.test(name || "")) {
+  if (
+    /\[(mixed|remix)\]|\bdj mix\b/i.test(`${rawName} ${a.albumName || ""}`) &&
+    !/mix|remix/i.test(name || "")
+  ) {
     score -= 70;
   }
 
@@ -163,11 +166,15 @@ async function searchTrack(name, artist, album, mediaUserToken) {
           .map((s) => ({ s, score: scoreSong(s, name, primaryArtist, album) }))
           .sort((a, b) => b.score - a.score);
         const { s: song, score } = ranked[0];
-        const artworkUrl = song?.attributes?.artwork?.url?.replace("{w}", "640").replace("{h}", "640") || "";
+        const artworkUrl =
+          song?.attributes?.artwork?.url?.replace("{w}", "640").replace("{h}", "640") || "";
         console.log(
-          "[AppleMusicAPI] Found:", song.id, song.attributes?.name,
+          "[AppleMusicAPI] Found:",
+          song.id,
+          song.attributes?.name,
           `[${song.attributes?.contentRating || "none"}] score=${score}`,
-          "artwork:", artworkUrl ? artworkUrl.slice(0, 60) + "..." : "NONE",
+          "artwork:",
+          artworkUrl ? artworkUrl.slice(0, 60) + "..." : "NONE"
         );
         return { id: song.id, type: "songs", artworkUrl };
       }
@@ -314,4 +321,3 @@ export async function fetchITunesArtwork(name, artist, album = "") {
   }
   return null;
 }
-

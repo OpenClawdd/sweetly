@@ -37,7 +37,15 @@ export async function findLoopbackDevice() {
   let output = "";
   try {
     // -list_devices always exits non-zero; the listing is on stderr.
-    await execFileAsync(ffmpeg, ["-hide_banner", "-f", "avfoundation", "-list_devices", "true", "-i", ""]);
+    await execFileAsync(ffmpeg, [
+      "-hide_banner",
+      "-f",
+      "avfoundation",
+      "-list_devices",
+      "true",
+      "-i",
+      "",
+    ]);
   } catch (e) {
     output = `${e.stderr || ""}${e.stdout || ""}`;
   }
@@ -65,20 +73,35 @@ export function captureSystemAudio({ seconds, outPath, deviceIndex, signal }) {
   return new Promise((resolve) => {
     const ffmpeg = resolveFfmpeg();
     const args = [
-      "-hide_banner", "-loglevel", "error", "-nostdin",
-      "-f", "avfoundation",
-      "-i", `:${deviceIndex}`,
-      "-t", String(Math.max(1, Math.round(seconds))),
-      "-ac", "1",
-      "-ar", "16000",
-      "-y", outPath,
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-nostdin",
+      "-f",
+      "avfoundation",
+      "-i",
+      `:${deviceIndex}`,
+      "-t",
+      String(Math.max(1, Math.round(seconds))),
+      "-ac",
+      "1",
+      "-ar",
+      "16000",
+      "-y",
+      outPath,
     ];
 
     const child = spawn(ffmpeg, args);
     let stderr = "";
-    child.stderr.on("data", (d) => { stderr += d.toString(); });
+    child.stderr.on("data", (d) => {
+      stderr += d.toString();
+    });
 
-    const onAbort = () => { try { child.kill("SIGINT"); } catch {} };
+    const onAbort = () => {
+      try {
+        child.kill("SIGINT");
+      } catch {}
+    };
     signal?.addEventListener?.("abort", onAbort, { once: true });
 
     child.on("error", (e) => {
@@ -95,7 +118,10 @@ export function captureSystemAudio({ seconds, outPath, deviceIndex, signal }) {
       const size = fs.existsSync(outPath) ? fs.statSync(outPath).size : 0;
       if (size < 32000) {
         // ~1s of 16 kHz mono. Anything smaller means we captured silence or nothing.
-        resolve({ ok: false, reason: `captured only ${size} bytes — is output routed through the loopback device?` });
+        resolve({
+          ok: false,
+          reason: `captured only ${size} bytes — is output routed through the loopback device?`,
+        });
         return;
       }
       resolve({ ok: true, path: outPath });

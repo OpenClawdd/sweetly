@@ -45,8 +45,6 @@ const OpenPopupLyricsFlow = async () => {
     return;
   }
 
-
-
   if (PageView.IsOpened) return;
 
   // Check for the Picture-in-Picture API
@@ -68,32 +66,30 @@ const OpenPopupLyricsFlow = async () => {
   // Copy style sheets over from the initial document
   // so that the player looks the same.
   // Only copy <link> elements with href starting with "https://fonts.spikerko.org" to the PiP window
-  Array.from(document.querySelectorAll('link[rel="stylesheet"]')).forEach((link: HTMLLinkElement) => {
-    const href = link.getAttribute("href") || "";
-    const classList = Array.from(link.classList || []);
-    const isFont = href.startsWith("https://fonts.spikerko.org");
-    const isLocalCss = /^\/[a-zA-Z]{2}.*\.css$/.test(href);
-    const isUserCss = (
-      (href.endsWith("colors.css") || href.endsWith("user.css")) &&
-      classList.length === 1 &&
-      classList[0] === "userCSS"
-    );
-    if (
-      link.href &&
-      (isFont || isLocalCss || isUserCss)
-    ) {
-      const pipLink = document.createElement('link');
-      pipLink.rel = 'stylesheet';
-      pipLink.type = link.type || 'text/css';
-      pipLink.media = link.media || '';
-      pipLink.href = link.href;
-      // Copy classes if it's a userCSS link
-      if (isUserCss) {
-        pipLink.className = link.className;
+  Array.from(document.querySelectorAll('link[rel="stylesheet"]')).forEach(
+    (link: HTMLLinkElement) => {
+      const href = link.getAttribute("href") || "";
+      const classList = Array.from(link.classList || []);
+      const isFont = href.startsWith("https://fonts.spikerko.org");
+      const isLocalCss = /^\/[a-zA-Z]{2}.*\.css$/.test(href);
+      const isUserCss =
+        (href.endsWith("colors.css") || href.endsWith("user.css")) &&
+        classList.length === 1 &&
+        classList[0] === "userCSS";
+      if (link.href && (isFont || isLocalCss || isUserCss)) {
+        const pipLink = document.createElement("link");
+        pipLink.rel = "stylesheet";
+        pipLink.type = link.type || "text/css";
+        pipLink.media = link.media || "";
+        pipLink.href = link.href;
+        // Copy classes if it's a userCSS link
+        if (isUserCss) {
+          pipLink.className = link.className;
+        }
+        currentPipWindow.document.head.appendChild(pipLink);
       }
-      currentPipWindow.document.head.appendChild(pipLink);
     }
-  });
+  );
 
   // Copy the main SpicyLyrics style element
   // Find any <style> element in the DOM that includes '#SpicyLyricsPage' in its textContent
@@ -145,13 +141,20 @@ const OpenPopupLyricsFlow = async () => {
       inset: 0;
       width: 100cqw;
     }
-  `.replace(/\s+/g, ' ').replace(/;\s*/g, ';').replace(/{\s*/g, '{').replace(/\s*}/g, '}').trim();
+  `
+    .replace(/\s+/g, " ")
+    .replace(/;\s*/g, ";")
+    .replace(/{\s*/g, "{")
+    .replace(/\s*}/g, "}")
+    .trim();
 
   currentPipWindow.document.head.appendChild(additionalStylingElement);
 
   currentPipWindow.document.body.innerHTML = `<div class="app-drag-region"></div><div class="spicy-pip-wrapper"></div>`;
 
-  const pipWrapper = currentPipWindow.document.body.querySelector(".spicy-pip-wrapper") as HTMLElement;
+  const pipWrapper = currentPipWindow.document.body.querySelector(
+    ".spicy-pip-wrapper"
+  ) as HTMLElement;
 
   IsPIP = true;
 
@@ -173,7 +176,7 @@ export const ClosePopupLyrics = async () => {
   if (!IsPIP || !currentPipWindow) return;
   _IsPIP_after = false;
 
-  await Fullscreen.Close(true)
+  await Fullscreen.Close(true);
   await PageView.Destroy();
 
   // Remove the event listener before closing the window
@@ -182,9 +185,9 @@ export const ClosePopupLyrics = async () => {
     pipPageHideHandler = null;
   }
 
-  currentPipWindow.close()
+  currentPipWindow.close();
 
   currentPipWindow = null;
 
-  IsPIP = false
-}
+  IsPIP = false;
+};

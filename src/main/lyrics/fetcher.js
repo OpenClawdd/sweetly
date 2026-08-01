@@ -12,8 +12,12 @@ const CACHE_MAX = 60;
 
 const lyricsCache = new Map();
 
+function makeCacheKey(name, artist) {
+  return `${(name || "").trim().toLowerCase()}|||${(artist || "").trim().toLowerCase()}`;
+}
+
 function cacheGet(name, artist) {
-  const key = `${name}|||${artist}`;
+  const key = makeCacheKey(name, artist);
   const entry = lyricsCache.get(key);
   if (entry) {
     lyricsCache.delete(key);
@@ -24,14 +28,18 @@ function cacheGet(name, artist) {
 }
 
 function cacheSet(name, artist, value) {
-  if (!value) return;
-  const key = `${name}|||${artist}`;
+  if (!value || !value.data) return;
+  const key = makeCacheKey(name, artist);
   if (lyricsCache.has(key)) lyricsCache.delete(key);
   lyricsCache.set(key, value);
   while (lyricsCache.size > CACHE_MAX) {
     const oldest = lyricsCache.keys().next().value;
     lyricsCache.delete(oldest);
   }
+}
+
+export function clearLyricsCache() {
+  lyricsCache.clear();
 }
 
 /**

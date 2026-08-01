@@ -23,7 +23,7 @@ open it, and drag Sweetly into your Applications folder.
 
 1. Launch Sweetly. It opens a setup screen asking for a one-time token (see below).
 2. Play a song in Apple Music. macOS will ask for **Automation** access to Music —
-   enable it under *System Settings → Privacy & Security → Automation*, or trigger
+   enable it under _System Settings → Privacy & Security → Automation_, or trigger
    the prompt by playing a song. Sweetly recovers on its own.
 3. Word-level lyrics appear over whatever you're doing. Toggle fullscreen with
    **Cmd+Shift+F** or the expand button in the corner.
@@ -66,17 +66,17 @@ and `dist/Sweetly-<version>.dmg`.
 
 ## Layout
 
-| Path | What it is |
-| --- | --- |
-| `src/main/` | Electron main process — window, Apple Music bridge, all network IO |
-| `src/main/lyrics/` | Lyrics provider chain, track matching, alignment pipeline |
+| Path                      | What it is                                                          |
+| ------------------------- | ------------------------------------------------------------------- |
+| `src/main/`               | Electron main process — window, Apple Music bridge, all network IO  |
+| `src/main/lyrics/`        | Lyrics provider chain, track matching, alignment pipeline           |
 | `src/main/spotifyAuth.js` | Optional Spotify OAuth (PKCE) for the Spicy Lyrics community source |
-| `src/preload/` | `contextBridge` exposing `electronAPI` to the renderer |
-| `src/renderer/main.ts` | Renderer entry — boots the vendored Spicy UI |
-| `src/renderer/adapter/` | Adapts Apple Music playback state to Spicy's player surface |
-| `src/renderer/setup/` | First-run setup gate (media-user-token + Spotify sign-in) |
-| everything else in `src/` | Vendored Spicy Lyrics code, kept diffable against upstream |
-| `scripts/align_lyrics.py` | Forced-alignment / ASR pipeline producing word-level timings |
+| `src/preload/`            | `contextBridge` exposing `electronAPI` to the renderer              |
+| `src/renderer/main.ts`    | Renderer entry — boots the vendored Spicy UI                        |
+| `src/renderer/adapter/`   | Adapts Apple Music playback state to Spicy's player surface         |
+| `src/renderer/setup/`     | First-run setup gate (media-user-token + Spotify sign-in)           |
+| everything else in `src/` | Vendored Spicy Lyrics code, kept diffable against upstream          |
+| `scripts/align_lyrics.py` | Forced-alignment / ASR pipeline producing word-level timings        |
 
 ## How lyrics sourcing works
 

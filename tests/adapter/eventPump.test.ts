@@ -58,7 +58,7 @@ describe("createEventPump", () => {
 
     expect(evoke).toHaveBeenCalledWith(
       "playback:songchange",
-      expect.objectContaining({ data: expect.objectContaining({ item: { uri: "apple:track:b" } }) }),
+      expect.objectContaining({ data: expect.objectContaining({ item: { uri: "apple:track:b" } }) })
     );
   });
 

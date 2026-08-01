@@ -74,7 +74,7 @@ if (!map) {
   console.error(
     `No ${path.join(CUSTOM_DIR, "audit-map.json")}.\n` +
       `Create it as { "<slug>": { "name": "...", "artist": "...", "album": "..." } }\n` +
-      `— filename slugs cannot be reversed into a title and artist reliably.`,
+      `— filename slugs cannot be reversed into a title and artist reliably.`
   );
   process.exit(1);
 }
@@ -102,10 +102,14 @@ for (const [slug, meta] of Object.entries(map)) {
     continue;
   }
 
-  const spread = Math.abs(mine.length - ref.anchors.length) / Math.max(mine.length, ref.anchors.length);
+  const spread =
+    Math.abs(mine.length - ref.anchors.length) / Math.max(mine.length, ref.anchors.length);
   if (spread > SEGMENTATION_TOLERANCE) {
     rows.push({
-      slug, lines: mine.length, refLines: ref.anchors.length, src: ref.source,
+      slug,
+      lines: mine.length,
+      refLines: ref.anchors.length,
+      src: ref.source,
       verdict: "INCONCLUSIVE (segmentation differs)",
     });
     continue;
@@ -116,12 +120,23 @@ for (const [slug, meta] of Object.entries(map)) {
   const drift = median(deltas);
 
   rows.push({
-    slug, lines: mine.length, refLines: ref.anchors.length, src: ref.source,
-    drift, verdict: Math.abs(drift) > DRIFT_THRESHOLD ? "DRIFTED" : "ok",
+    slug,
+    lines: mine.length,
+    refLines: ref.anchors.length,
+    src: ref.source,
+    drift,
+    verdict: Math.abs(drift) > DRIFT_THRESHOLD ? "DRIFTED" : "ok",
   });
 }
 
-console.log("file".padEnd(44), "lines".padStart(5), "ref".padStart(5), "src".padEnd(7), "drift".padStart(8), "verdict");
+console.log(
+  "file".padEnd(44),
+  "lines".padStart(5),
+  "ref".padStart(5),
+  "src".padEnd(7),
+  "drift".padStart(8),
+  "verdict"
+);
 for (const r of rows.sort((a, b) => Math.abs(b.drift ?? 0) - Math.abs(a.drift ?? 0))) {
   console.log(
     r.slug.padEnd(44),
@@ -129,14 +144,17 @@ for (const r of rows.sort((a, b) => Math.abs(b.drift ?? 0) - Math.abs(a.drift ??
     String(r.refLines ?? "-").padStart(5),
     String(r.src ?? "-").padEnd(7),
     (r.drift === undefined ? "-" : `${r.drift >= 0 ? "+" : ""}${r.drift.toFixed(1)}s`).padStart(8),
-    r.verdict,
+    r.verdict
   );
 }
 
 const drifted = rows.filter((r) => r.verdict === "DRIFTED");
-console.log(`\n${drifted.length} drifted, ${rows.filter((r) => r.verdict === "ok").length} ok, ` +
-  `${rows.filter((r) => String(r.verdict).startsWith("INCONCLUSIVE")).length} inconclusive.`);
+console.log(
+  `\n${drifted.length} drifted, ${rows.filter((r) => r.verdict === "ok").length} ok, ` +
+    `${rows.filter((r) => String(r.verdict).startsWith("INCONCLUSIVE")).length} inconclusive.`
+);
 if (drifted.length) {
   console.log("\nTo regenerate, move them aside — the aligner rebuilds a file it cannot find:");
-  for (const r of drifted) console.log(`  mv ~/.sweetly-custom/${r.slug}.ttml ~/.sweetly-custom/.quarantine/`);
+  for (const r of drifted)
+    console.log(`  mv ~/.sweetly-custom/${r.slug}.ttml ~/.sweetly-custom/.quarantine/`);
 }

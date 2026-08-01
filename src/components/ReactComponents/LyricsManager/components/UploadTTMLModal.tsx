@@ -54,8 +54,7 @@ export default function UploadTTMLModal({ onBack, onDone }: UploadTTMLModalProps
           await LocalLyricsManager.put(uri, ttml);
           $currentLyricsData.set("");
           setTimeout(() => {
-            fetchLyrics(uri)
-              .then(ApplyLyrics)
+            fetchLyrics(uri).then(ApplyLyrics);
           }, 25);
           toast.success("TTML saved to Local DB!", { duration: 5000 });
           onDone("persistent");
@@ -131,7 +130,9 @@ export default function UploadTTMLModal({ onBack, onDone }: UploadTTMLModalProps
           onClick={() => setMode("temporary")}
         >
           <span className="sl-ldb-upload-mode-title">Temporary Upload</span>
-          <span className="sl-ldb-upload-mode-desc">Applied only to current song until refresh</span>
+          <span className="sl-ldb-upload-mode-desc">
+            Applied only to current song until refresh
+          </span>
         </button>
       </div>
 

@@ -1,12 +1,16 @@
 /* as of right now, this is super simple as i made this in a rush. might evolve, might not */
 
 function onMarketplaceUserCssDetected(userCssText: string | null) {
-    if (userCssText?.includes(`*:not([style*="lyric" i] *, [class*="lyric" i], .main-entityHeader-title)`)) {
-        document.body.classList.add("sltm__ThemeMatch__textdt");
-        return;
-    }
+  if (
+    userCssText?.includes(
+      `*:not([style*="lyric" i] *, [class*="lyric" i], .main-entityHeader-title)`
+    )
+  ) {
+    document.body.classList.add("sltm__ThemeMatch__textdt");
+    return;
+  }
 
-    document.body.classList.remove("sltm__ThemeMatch__textdt")
+  document.body.classList.remove("sltm__ThemeMatch__textdt");
 }
 
 export function watchMarketplaceUserCss(): () => void {
@@ -15,8 +19,7 @@ export function watchMarketplaceUserCss(): () => void {
   let cssObserver: MutationObserver | null = null;
   let currentEl: Element | null = null;
 
-  const emit = (userCssText: string | null) =>
-    onMarketplaceUserCssDetected(userCssText);
+  const emit = (userCssText: string | null) => onMarketplaceUserCssDetected(userCssText);
 
   const getMarketplaceUserCssEl = () =>
     document.body?.querySelector(":scope > .marketplaceUserCSS") ?? null;

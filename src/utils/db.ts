@@ -5,7 +5,7 @@ const dbLogger = new Logger("Database");
 
 export const ObjectStores = {
   LyricsStore: "lyricsStore",
-}
+};
 
 export const dbPromise = openDB("spicylyrics", 1, {
   upgrade(db) {
@@ -23,13 +23,13 @@ export async function ensurePersistence() {
 
     const granted = await navigator.storage.persist();
     if (!granted) {
-      dbLogger.warn("Data persistence request was denied; This can lead to potential data loss")
+      dbLogger.warn("Data persistence request was denied; This can lead to potential data loss");
     } else {
-      dbLogger.debug("Data persistence request was accepted")
+      dbLogger.debug("Data persistence request was accepted");
     }
     return granted;
   } catch (e) {
-    dbLogger.warn("Persistence check failed")
+    dbLogger.warn("Persistence check failed");
     return false;
   }
 }

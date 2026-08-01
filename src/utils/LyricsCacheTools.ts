@@ -8,9 +8,7 @@ import { $currentLyricsData } from "./stores.ts";
 export const RemoveCurrentLyrics_AllCaches = async (ui: boolean = false) => {
   const currentSongId = SpotifyPlayer.GetId();
   if (!currentSongId || currentSongId === undefined) {
-    ui
-      ? toast.error(`The current song id could not be retrieved`)
-      : null;
+    ui ? toast.error(`The current song id could not be retrieved`) : null;
   }
   try {
     await LyricsStore.RemoveItem(currentSongId ?? "");
@@ -26,7 +24,9 @@ export const RemoveCurrentLyrics_AllCaches = async (ui: boolean = false) => {
     }
   } catch (error) {
     ui
-      ? toast.error(`Lyrics for the current song, couldn't be removed from all available caches. Check the console for more info.`)
+      ? toast.error(
+          `Lyrics for the current song, couldn't be removed from all available caches. Check the console for more info.`
+        )
       : null;
     console.error("SpicyLyrics:", error);
   }
@@ -35,9 +35,7 @@ export const RemoveCurrentLyrics_AllCaches = async (ui: boolean = false) => {
 export const RemoveLyricsCache = async (ui: boolean = false) => {
   try {
     await LyricsStore.Destroy();
-    ui
-      ? toast.success("The Lyrics Cache has been destroyed successfully")
-      : null;
+    ui ? toast.success("The Lyrics Cache has been destroyed successfully") : null;
     if (PageView.IsOpened) {
       const uri = SpotifyPlayer.GetUri();
       if (uri && uri !== undefined) {
@@ -52,12 +50,13 @@ export const RemoveLyricsCache = async (ui: boolean = false) => {
   }
 };
 
-
 export const RemoveCurrentLyrics_StateCache = (ui: boolean = false) => {
   try {
     $currentLyricsData.set("");
     ui
-      ? toast.success("Lyrics for the current song, have been removed from the internal state successfully")
+      ? toast.success(
+          "Lyrics for the current song, have been removed from the internal state successfully"
+        )
       : null;
     if (PageView.IsOpened) {
       const uri = SpotifyPlayer.GetUri();
@@ -67,7 +66,9 @@ export const RemoveCurrentLyrics_StateCache = (ui: boolean = false) => {
     }
   } catch (error) {
     ui
-      ? toast.error(`Lyrics for the current song, couldn't be removed from the internal state. Check the console for more info.`)
+      ? toast.error(
+          `Lyrics for the current song, couldn't be removed from the internal state. Check the console for more info.`
+        )
       : null;
     console.error("SpicyLyrics:", error);
   }

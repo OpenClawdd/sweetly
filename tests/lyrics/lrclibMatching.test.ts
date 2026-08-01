@@ -6,7 +6,7 @@ const SYNCED = "[00:12.00] line one\n[00:15.50] line two\n[00:19.00] line three"
 function mockSearch(results: unknown[]) {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => ({ ok: true, json: async () => results })),
+    vi.fn(async () => ({ ok: true, json: async () => results }))
   );
 }
 
@@ -52,7 +52,12 @@ describe("fetchLRCLib track matching", () => {
 
   it("still returns null when no candidate has synced lyrics", async () => {
     mockSearch([
-      { trackName: "Some Song", artistName: "Some Artist", plainLyrics: "words", syncedLyrics: null },
+      {
+        trackName: "Some Song",
+        artistName: "Some Artist",
+        plainLyrics: "words",
+        syncedLyrics: null,
+      },
     ]);
 
     expect(await fetchLRCLib("Some Song", "Some Artist")).toBeNull();
@@ -60,7 +65,12 @@ describe("fetchLRCLib track matching", () => {
 
   it("does not match an unrelated track that happens to be synced", async () => {
     mockSearch([
-      { trackName: "Entirely Different Song", artistName: "Nobody At All", plainLyrics: "x", syncedLyrics: SYNCED },
+      {
+        trackName: "Entirely Different Song",
+        artistName: "Nobody At All",
+        plainLyrics: "x",
+        syncedLyrics: SYNCED,
+      },
     ]);
 
     expect(await fetchLRCLib("Cool, Daddy Cool", "Kid Rock")).toBeNull();

@@ -35,7 +35,7 @@ vi.mock("../../src/main/lyrics/sources/spotify.js", () => ({
   fetchSpicyLyricsData: vi.fn(),
 }));
 
-const { fetchLyricsData } = await import("../../src/main/lyrics/fetcher.js");
+const { fetchLyricsData, clearLyricsCache } = await import("../../src/main/lyrics/fetcher.js");
 
 /** Minimal Spicy-shaped payload with the given timing granularity. */
 function lyrics(timing: string) {
@@ -45,6 +45,7 @@ function lyrics(timing: string) {
 describe("provider precedence", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearLyricsCache();
     fetchITunesArtwork.mockResolvedValue(null);
     fetchBiniLyrics.mockResolvedValue(null);
   });
@@ -86,5 +87,31 @@ describe("provider precedence", () => {
     const result = await fetchLyricsData("Song Four", "Artist", "Album", {});
 
     expect(result.provider).toBe("spicylyrics");
+  });
+
+  test("null lyrics results are not cached so subsequent lookups can retry", async () => {
+    getCustomLyrics.mockResolvedValue(null);
+    findAppleMusicLyrics.mockResolvedValue(null);
+
+    const firstResult = await fetchLyricsData("Missing Track", "Artist", "Album", {});
+    expect(firstResult).toBeNull();
+
+    // Second call: provider now has lyrics
+    findAppleMusicLyrics.mockResolvedValue({ lyrics: lyrics("word"), artworkUrl: "art" });
+    const secondResult = await fetchLyricsData("Missing Track", "Artist", "Album", {});
+    expect(secondResult.provider).toBe("apple");
+  });
+
+  test("cache lookup is case-insensitive and trims whitespace", async () => {
+    getCustomLyrics.mockResolvedValue(lyrics("word"));
+    findAppleMusicLyrics.mockResolvedValue(null);
+
+    await fetchLyricsData("  Fe!n ", "Travis Scott", "Utopia", {});
+    expect(getCustomLyrics).toHaveBeenCalledTimes(1);
+
+    // Second call with different casing/spacing hits cache directly
+    const cachedResult = await fetchLyricsData("FE!N", "travis scott  ", "Utopia", {});
+    expect(getCustomLyrics).toHaveBeenCalledTimes(1);
+    expect(cachedResult.provider).toBe("spicylyrics");
   });
 });

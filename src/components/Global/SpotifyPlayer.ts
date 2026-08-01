@@ -1,7 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-import GetProgress, {
-  _DEPRECATED___GetProgress,
-} from "../../utils/Gets/GetProgress.ts";
+import GetProgress, { _DEPRECATED___GetProgress } from "../../utils/Gets/GetProgress.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 //type ArtworkSize = "s" | "l" | "xl" | "d";
@@ -150,9 +148,7 @@ export const SpotifyPlayer = {
     const covers = item.images ?? item.show?.images;
     if (covers?.length > 0) {
       const cover = covers.find((cover: any) => cover.label === size);
-      return (
-        cover?.url ?? "https://images.spikerko.org/SongPlaceholderFull.png"
-      );
+      return cover?.url ?? "https://images.spikerko.org/SongPlaceholderFull.png";
     }
     return "https://images.spikerko.org/SongPlaceholderFull.png";
   },
@@ -163,9 +159,7 @@ export const SpotifyPlayer = {
     if (source) {
       if (source.length > 0) {
         const cover = source?.find((cover) => cover.label === size);
-        return (
-          cover?.url ?? "https://images.spikerko.org/SongPlaceholderFull.png"
-        );
+        return cover?.url ?? "https://images.spikerko.org/SongPlaceholderFull.png";
       }
     }
     return "https://images.spikerko.org/SongPlaceholderFull.png";
@@ -206,11 +200,8 @@ export const SpotifyPlayer = {
     if (!data) return false;
     return (
       data.item?.provider?.startsWith("narration") ||
-      (data.restrictions?.disallowSeekingReasons?.length >
-        0 &&
-        data.restrictions?.disallowSeekingReasons[0]?.includes(
-          "narration"
-        )) ||
+      (data.restrictions?.disallowSeekingReasons?.length > 0 &&
+        data.restrictions?.disallowSeekingReasons[0]?.includes("narration")) ||
       data.item?.type === "unknown"
     );
   },
@@ -278,11 +269,7 @@ export const SpotifyPlayer = {
       }
       set icon(input: string) {
         let newInput = input;
-        if (
-          newInput &&
-          (Spicetify as any).SVGIcons &&
-          (Spicetify as any).SVGIcons[newInput]
-        ) {
+        if (newInput && (Spicetify as any).SVGIcons && (Spicetify as any).SVGIcons[newInput]) {
           newInput = `<svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor" stroke="currentColor">${
             (Spicetify as any).SVGIcons[newInput]
           }</svg>`;
@@ -308,10 +295,7 @@ export const SpotifyPlayer = {
       set active(bool: boolean) {
         this._active = bool;
         this.element.classList.toggle("main-genericButton-buttonActive", bool);
-        this.element.classList.toggle(
-          "main-genericButton-buttonActiveDot",
-          bool
-        );
+        this.element.classList.toggle("main-genericButton-buttonActiveDot", bool);
       }
       get active(): boolean {
         return this._active;
@@ -328,12 +312,8 @@ export const SpotifyPlayer = {
 
     (function waitForPlaybarMounted() {
       rightContainer =
-        document.querySelector<HTMLElement>(
-          ".main-nowPlayingBar-right > div"
-        ) ??
-        document.querySelector<HTMLElement>(
-          ".main-nowPlayingBar-extraControls"
-        );
+        document.querySelector<HTMLElement>(".main-nowPlayingBar-right > div") ??
+        document.querySelector<HTMLElement>(".main-nowPlayingBar-extraControls");
       if (!rightContainer) {
         setTimeout(waitForPlaybarMounted, 300);
         return;
@@ -357,8 +337,7 @@ export const SpotifyPlayer = {
         return;
       }
       for (const className of Array.from(sibling.classList)) {
-        if (!className.startsWith("main-genericButton"))
-          element.classList.add(className);
+        if (!className.startsWith("main-genericButton")) element.classList.add(className);
       }
     }
 
@@ -385,8 +364,7 @@ export const SpotifyPlayer = {
         registerOnCreate: boolean = true
       ) {
         this.element = document.createElement("button");
-        this.element.className =
-          "main-addButton-button control-button control-button-heart";
+        this.element.className = "main-addButton-button control-button control-button-heart";
         this.icon = icon;
         this.onClick = onClick;
         this.disabled = disabled;
@@ -411,11 +389,7 @@ export const SpotifyPlayer = {
       }
       set icon(input: string) {
         let newInput = input;
-        if (
-          newInput &&
-          (Spicetify as any).SVGIcons &&
-          (Spicetify as any).SVGIcons[newInput]
-        ) {
+        if (newInput && (Spicetify as any).SVGIcons && (Spicetify as any).SVGIcons[newInput]) {
           newInput = `<svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor">${
             (Spicetify as any).SVGIcons[newInput]
           }</svg>`;
@@ -458,9 +432,7 @@ export const SpotifyPlayer = {
     }
 
     function waitForWidgetMounted() {
-      nowPlayingWidget = document.querySelector<HTMLElement>(
-        ".main-nowPlayingWidget-nowPlaying"
-      );
+      nowPlayingWidget = document.querySelector<HTMLElement>(".main-nowPlayingWidget-nowPlaying");
       if (!nowPlayingWidget) {
         setTimeout(waitForWidgetMounted, 300);
         return;
@@ -473,9 +445,7 @@ export const SpotifyPlayer = {
         document.querySelector<HTMLElement>(".main-nowPlayingBar-left") ??
         document.querySelector<HTMLElement>(".qqAX5M23YurntqVJ_8Dt") ??
         document.querySelector<HTMLElement>(".main-nowPlayingWidget-actionButtonWrapper") ??
-        document.querySelector<HTMLElement>(
-          ".main-nowPlayingWidget-nowPlaying > div:last-of-type"
-        );
+        document.querySelector<HTMLElement>(".main-nowPlayingWidget-nowPlaying > div:last-of-type");
       if (!leftPlayer) {
         setTimeout(attachObserver, 300);
         return;

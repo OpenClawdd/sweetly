@@ -33,7 +33,12 @@ function matchTrack(results, name, artist) {
     else score -= 80;
 
     if (rArtist === normArtist) score += 60;
-    else if (rArtist.includes(normArtist) || normArtist.includes(rArtist) || (primaryArtist && rArtist.includes(primaryArtist))) score += 30;
+    else if (
+      rArtist.includes(normArtist) ||
+      normArtist.includes(rArtist) ||
+      (primaryArtist && rArtist.includes(primaryArtist))
+    )
+      score += 30;
     else score -= 40;
 
     if (r.syncedLyrics) score += 20;
@@ -61,7 +66,9 @@ export async function fetchLRCLib(name, artist) {
     }
 
     const q = encodeURIComponent(`${name} ${artist}`);
-    const res = await fetch(`https://lrclib.net/api/search?q=${q}`, { headers: { "User-Agent": SEARCH_UA } });
+    const res = await fetch(`https://lrclib.net/api/search?q=${q}`, {
+      headers: { "User-Agent": SEARCH_UA },
+    });
     if (!res.ok) {
       lrclibCache.set(cacheKey, null);
       return null;
@@ -92,7 +99,7 @@ export async function fetchLRCLib(name, artist) {
     }
 
     const lines = parsedLines.map((line, idx) => {
-      const nextTime = parsedLines[idx + 1]?.time ?? (line.time + 3);
+      const nextTime = parsedLines[idx + 1]?.time ?? line.time + 3;
       const endTime = Math.max(line.time + 1, nextTime);
       const syllables = splitLineToSyllables(line.text, line.time, endTime);
       return {
