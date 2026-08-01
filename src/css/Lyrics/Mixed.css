@@ -325,7 +325,8 @@
   .LyricsContent
   .line
   .letterGroup:not(.PartOfWord, .dot, .LastWordInLine)::after {
-  content: "";
+  content: " ";
+  white-space: pre;
   margin-right: 0.32ch;
 }
 

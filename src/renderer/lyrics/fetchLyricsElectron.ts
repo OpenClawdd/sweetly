@@ -60,8 +60,16 @@ function expandSyllablesInLyrics(data: Record<string, any>): Record<string, any>
     if (item.Lead && Array.isArray(item.Lead.Syllables)) {
       const newSyllables: any[] = [];
       for (const s of item.Lead.Syllables) {
-        if ($forceWordLevel.get() && s && typeof s.Text === "string" && /\s/.test(s.Text.trim())) {
-          const words = s.Text.trim().split(/\s+/).filter(Boolean);
+        const textToExpand = typeof s?.Text === "string" ? s.Text.trim() : "";
+        const expandText = (txt: string) => {
+          let str = String(txt || "").trim();
+          str = str.replace(/([a-z0-9"']])([A-Z])/g, "$1 $2");
+          str = str.replace(/([,.!?;:])([A-Za-z0-9])/g, "$1 $2");
+          str = str.replace(/([a-z])([A-Z][a-z])/g, "$1 $2");
+          return str.split(/\s+/).filter(Boolean);
+        };
+        const words = expandText(textToExpand);
+        if (words.length > 1) {
           const duration = s.EndTime > s.StartTime ? s.EndTime - s.StartTime : 0;
           words.forEach((w: string, wi: number) => {
             const wIsLast = s.IsPartOfWord ? wi === words.length - 1 : false;
@@ -87,7 +95,14 @@ function expandSyllablesInLyrics(data: Record<string, any>): Record<string, any>
       const text = item.Text.trim();
       const startTime = item.StartTime ?? 0;
       const endTime = item.EndTime ?? startTime + 3;
-      const words = $forceWordLevel.get() ? text.split(/\s+/).filter(Boolean) : [text];
+      const expandText = (txt: string) => {
+        let str = String(txt || "").trim();
+        str = str.replace(/([a-z0-9"']])([A-Z])/g, "$1 $2");
+        str = str.replace(/([,.!?;:])([A-Za-z0-9])/g, "$1 $2");
+        str = str.replace(/([a-z])([A-Z][a-z])/g, "$1 $2");
+        return str.split(/\s+/).filter(Boolean);
+      };
+      const words = expandText(text);
       const duration = endTime > startTime ? endTime - startTime : 0;
       const syllables = words.map((w: string, wi: number) => ({
         Text: w,

@@ -150,29 +150,28 @@ export function parseTtmlXmlToJson(xml, opts = {}) {
         endTime = startTime + 0.2;
       }
 
-      if (/\s/.test(rawText)) {
-        const words = rawText.split(/\s+/).filter(Boolean);
-        const duration = Math.max(0.1, endTime - startTime);
-        words.forEach((w, wi) => {
-          const wIsLast = isLast && wi === words.length - 1;
-          const wIsPartOfWord = !wIsLast && (wi < words.length - 1 ? false : isPartOfWord);
-          const wStart = startTime + (wi / words.length) * duration;
-          const wEnd = startTime + ((wi + 1) / words.length) * duration;
-          syllables.push({
-            Text: w,
-            StartTime: wStart,
-            EndTime: Math.max(wEnd, wStart + 0.05),
-            IsPartOfWord: wIsPartOfWord,
-          });
-        });
-      } else {
+      const expandText = (txt) => {
+        let str = String(txt || "").trim();
+        str = str.replace(/([a-z0-9"']])([A-Z])/g, "$1 $2");
+        str = str.replace(/([,.!?;:])([A-Za-z0-9])/g, "$1 $2");
+        str = str.replace(/([a-z])([A-Z][a-z])/g, "$1 $2");
+        return str.split(/\s+/).filter(Boolean);
+      };
+
+      const words = expandText(rawText);
+      const duration = Math.max(0.1, endTime - startTime);
+      words.forEach((w, wi) => {
+        const wIsLast = isLast && wi === words.length - 1;
+        const wIsPartOfWord = !wIsLast && (wi < words.length - 1 ? false : isPartOfWord);
+        const wStart = startTime + (wi / words.length) * duration;
+        const wEnd = startTime + ((wi + 1) / words.length) * duration;
         syllables.push({
-          Text: rawText,
-          StartTime: startTime,
-          EndTime: Math.max(endTime, startTime + 0.05),
-          IsPartOfWord: isPartOfWord,
+          Text: w,
+          StartTime: wStart,
+          EndTime: Math.max(wEnd, wStart + 0.05),
+          IsPartOfWord: wIsPartOfWord,
         });
-      }
+      });
     }
     return syllables;
   };

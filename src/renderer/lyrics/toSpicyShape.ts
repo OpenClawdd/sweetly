@@ -120,33 +120,30 @@ function collectSyllables(container: Element): Syllable[] {
       const endTime = parseTTMLTime(span.getAttribute("end"));
       const trimmed = raw.trim();
 
-      if (/\s/.test(trimmed)) {
-        const words = trimmed.split(/\s+/).filter(Boolean);
-        const duration = endTime > startTime ? endTime - startTime : 0;
-        return words.map((w, wi) => {
-          const wIsLast = isLast && wi === words.length - 1;
-          const wIsPartOfWord = !wIsLast && (wi < words.length - 1 ? false : isPartOfWord);
-          const wStart =
-            duration > 0 ? startTime + Math.round((wi / words.length) * duration) : startTime;
-          const wEnd =
-            duration > 0 ? startTime + Math.round(((wi + 1) / words.length) * duration) : endTime;
-          return {
-            Text: w,
-            StartTime: wStart,
-            EndTime: wEnd,
-            IsPartOfWord: wIsPartOfWord,
-          };
-        });
-      }
+      const expandText = (txt: string) => {
+        let str = String(txt || "").trim();
+        str = str.replace(/([a-z0-9"']])([A-Z])/g, "$1 $2");
+        str = str.replace(/([,.!?;:])([A-Za-z0-9])/g, "$1 $2");
+        str = str.replace(/([a-z])([A-Z][a-z])/g, "$1 $2");
+        return str.split(/\s+/).filter(Boolean);
+      };
 
-      return [
-        {
-          Text: trimmed,
-          StartTime: startTime,
-          EndTime: endTime,
-          IsPartOfWord: isPartOfWord,
-        },
-      ];
+      const words = expandText(raw);
+      const duration = endTime > startTime ? endTime - startTime : 0;
+      return words.map((w, wi) => {
+        const wIsLast = isLast && wi === words.length - 1;
+        const wIsPartOfWord = !wIsLast && (wi < words.length - 1 ? false : isPartOfWord);
+        const wStart =
+          duration > 0 ? startTime + Math.round((wi / words.length) * duration) : startTime;
+        const wEnd =
+          duration > 0 ? startTime + Math.round(((wi + 1) / words.length) * duration) : endTime;
+        return {
+          Text: w,
+          StartTime: wStart,
+          EndTime: wEnd,
+          IsPartOfWord: wIsPartOfWord,
+        };
+      });
     })
     .filter((syllable) => syllable.Text.length > 0);
 }
