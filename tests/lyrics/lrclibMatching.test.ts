@@ -76,3 +76,42 @@ describe("fetchLRCLib track matching", () => {
     expect(await fetchLRCLib("Cool, Daddy Cool", "Kid Rock")).toBeNull();
   });
 });
+
+describe("parseLrcToTTML", () => {
+  it("parses Enhanced LRC with inline word timestamps", async () => {
+    const { parseLrcToTTML } = await import("../../src/main/lyrics/utils.js");
+    const elrc = "[00:10.00] First <00:10.50> Second <00:11.20> Third";
+    const result = parseLrcToTTML(elrc);
+
+    expect(result).not.toBeNull();
+    const syllables = result?.Content[0]?.Lead?.Syllables;
+    expect(syllables).toHaveLength(3);
+    expect(syllables?.[0].Text).toBe("First");
+    expect(syllables?.[0].StartTime).toBeCloseTo(10.0, 2);
+    expect(syllables?.[1].Text).toBe("Second");
+    expect(syllables?.[1].StartTime).toBeCloseTo(10.5, 2);
+    expect(syllables?.[2].Text).toBe("Third");
+    expect(syllables?.[2].StartTime).toBeCloseTo(11.2, 2);
+  });
+
+  it("separates lead and background vocals in parentheses", async () => {
+    const { parseLrcToTTML } = await import("../../src/main/lyrics/utils.js");
+    const lrc = "[00:10.00] Lead vocal (Background vocal)";
+    const result = parseLrcToTTML(lrc);
+
+    expect(result).not.toBeNull();
+    expect(result?.Content[0]?.Lead?.Syllables[0].Text).toBe("Lead");
+    expect(result?.Content[0]?.Background?.Syllables[0].Text).toBe("Background");
+  });
+
+  it("expands multi-timestamp line headers", async () => {
+    const { parseLrcToTTML } = await import("../../src/main/lyrics/utils.js");
+    const lrc = "[00:10.00][01:30.00] Chorus line";
+    const result = parseLrcToTTML(lrc);
+
+    expect(result).not.toBeNull();
+    expect(result?.Content).toHaveLength(2);
+    expect(result?.Content[0]?.Lead?.StartTime).toBeCloseTo(10.0, 2);
+    expect(result?.Content[1]?.Lead?.StartTime).toBeCloseTo(90.0, 2);
+  });
+});

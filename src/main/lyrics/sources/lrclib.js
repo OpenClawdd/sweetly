@@ -1,4 +1,4 @@
-import { SEARCH_UA, splitLineToSyllables } from "../utils.js";
+import { SEARCH_UA, parseLrcToTTML } from "../utils.js";
 
 function normalize(str) {
   return String(str || "")
@@ -85,30 +85,7 @@ export async function fetchLRCLib(name, artist) {
     }
     console.log("[Sweetly-Main] LRCLIB:", match.trackName, match.artistName);
 
-    const parsedLines = [];
-    for (const raw of match.syncedLyrics.split("\n")) {
-      const m = raw.match(/\[(\d{1,3}):(\d{2})(?:[.:](\d{2,3}))?\](.*)/);
-      if (!m) continue;
-      const mins = parseFloat(m[1]) || 0;
-      const secs = parseFloat(m[2]) || 0;
-      const ms = m[3] ? parseFloat(m[3]) / (m[3].length === 3 ? 1000 : 100) : 0;
-      const time = mins * 60 + secs + ms;
-      const text = (m[4] || "").trim();
-      if (!text) continue;
-      parsedLines.push({ time, text });
-    }
-
-    const lines = parsedLines.map((line, idx) => {
-      const nextTime = parsedLines[idx + 1]?.time ?? line.time + 3;
-      const endTime = Math.max(line.time + 1, nextTime);
-      const syllables = splitLineToSyllables(line.text, line.time, endTime);
-      return {
-        Lead: { StartTime: line.time, EndTime: endTime, Syllables: syllables },
-        OppositeAligned: false,
-      };
-    });
-
-    const result = lines.length > 0 ? { Content: lines, Type: "Syllable" } : null;
+    const result = parseLrcToTTML(match.syncedLyrics);
     lrclibCache.set(cacheKey, result);
     return result;
   } catch (e) {

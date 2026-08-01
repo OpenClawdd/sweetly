@@ -237,3 +237,168 @@ export function splitLineToSyllables(text, startTime, endTime) {
     IsPartOfWord: false,
   }));
 }
+
+/**
+ * Parse standard LRC or Enhanced LRC (ELRC with <mm:ss.xx> word tags) into Spicy TTML AST shape.
+ * Supports:
+ * - Multi-timestamp line headers: [00:10.00][01:30.00] Text
+ * - Inline word-level timestamps: [00:10.00] Word1 <00:10.50> Word2 <00:11.00> Word3
+ * - Background vocal separation: "Lead Vocal (Background Vocal)" -> Lead & Background groups
+ * - Instrumental break / Outro markers: empty timestamp lines set EndTime of preceding line
+ */
+export function parseLrcToTTML(lrcText) {
+  if (!lrcText || typeof lrcText !== "string") return null;
+
+  const rawLines = lrcText.split(/\r?\n/);
+  const parsedEntries = [];
+
+  for (const rawLine of rawLines) {
+    const trimmed = rawLine.trim();
+    if (!trimmed) continue;
+
+    const headerRegex = /^((?:\[\d{1,3}:\d{2}(?:[.:]\d{2,3})?\])+)(.*)/;
+    const match = trimmed.match(headerRegex);
+    if (!match) continue;
+
+    const headersStr = match[1];
+    const restText = match[2] || "";
+
+    const tsMatches = headersStr.matchAll(/\[(\d{1,3}):(\d{2})(?:[.:](\d{2,3}))?\]/g);
+    for (const tm of tsMatches) {
+      const mins = parseFloat(tm[1]) || 0;
+      const secs = parseFloat(tm[2]) || 0;
+      const ms = tm[3] ? parseFloat(tm[3]) / (tm[3].length === 3 ? 1000 : 100) : 0;
+      const time = mins * 60 + secs + ms;
+      parsedEntries.push({ time, text: restText });
+    }
+  }
+
+  if (parsedEntries.length === 0) return null;
+
+  parsedEntries.sort((a, b) => a.time - b.time);
+
+  const content = [];
+
+  for (let i = 0; i < parsedEntries.length; i++) {
+    const entry = parsedEntries[i];
+    const text = entry.text.trim();
+
+    if (!text) continue;
+
+    const nextEntry = parsedEntries.slice(i + 1).find((e) => e.time > entry.time);
+    const nextTime = nextEntry ? nextEntry.time : entry.time + 3.5;
+    const defaultEndTime = Math.max(entry.time + 1, nextTime);
+
+    const hasInlineTimestamps = /<\d{1,3}:\d{2}(?:[.:]\d{2,3})?>/.test(text);
+
+    let leadSyllables = [];
+    let lineEndTime = defaultEndTime;
+    let bgText = null;
+    let leadText = text;
+
+    if (!hasInlineTimestamps) {
+      const bgMatch = text.match(/^(.*?)\(([^)]+)\)(.*)$/);
+      if (bgMatch) {
+        const beforeBg = bgMatch[1].trim();
+        const insideBg = bgMatch[2].trim();
+        const afterBg = bgMatch[3].trim();
+        leadText = [beforeBg, afterBg].filter(Boolean).join(" ");
+        bgText = insideBg;
+      }
+    }
+
+    if (hasInlineTimestamps) {
+      const tokenRegex = /(?:<(\d{1,3}):(\d{2})(?:[.:](\d{2,3}))?>)?([^<]+)/g;
+      const tokens = [];
+      let matchToken;
+
+      while ((matchToken = tokenRegex.exec(text)) !== null) {
+        const tMins = matchToken[1] ? parseFloat(matchToken[1]) : null;
+        const tSecs = matchToken[2] ? parseFloat(matchToken[2]) : null;
+        const tMs = matchToken[3]
+          ? parseFloat(matchToken[3]) / (matchToken[3].length === 3 ? 1000 : 100)
+          : 0;
+
+        let tTime = entry.time;
+        if (tMins !== null && tSecs !== null) {
+          tTime = tMins * 60 + tSecs + tMs;
+        }
+
+        const rawVal = matchToken[4];
+        if (rawVal) {
+          tokens.push({ time: tTime, rawText: rawVal });
+        }
+      }
+
+      if (tokens.length > 0) {
+        for (let k = 0; k < tokens.length; k++) {
+          const tok = tokens[k];
+          const nextTokTime = tokens[k + 1] ? tokens[k + 1].time : defaultEndTime;
+          const sStart = tok.time;
+          const sEnd = Math.max(sStart + 0.1, nextTokTime);
+
+          const words = tok.rawText.split(/(\s+)/);
+          let currentWord = "";
+
+          for (let wIdx = 0; wIdx < words.length; wIdx++) {
+            const chunk = words[wIdx];
+            if (!chunk) continue;
+
+            if (/^\s+$/.test(chunk)) {
+              if (currentWord) {
+                leadSyllables.push({
+                  Text: currentWord,
+                  StartTime: sStart,
+                  EndTime: sEnd,
+                  IsPartOfWord: false,
+                });
+                currentWord = "";
+              }
+            } else {
+              currentWord += chunk;
+              if (wIdx === words.length - 1 || !/^\s+$/.test(words[wIdx + 1] || "")) {
+                const isLastInToken = wIdx === words.length - 1;
+                leadSyllables.push({
+                  Text: currentWord,
+                  StartTime: sStart,
+                  EndTime: sEnd,
+                  IsPartOfWord: isLastInToken && !/\s$/.test(tok.rawText),
+                });
+                currentWord = "";
+              }
+            }
+          }
+        }
+        lineEndTime = Math.max(defaultEndTime, tokens[tokens.length - 1].time + 0.5);
+      }
+    }
+
+    if (leadSyllables.length === 0) {
+      leadSyllables = splitLineToSyllables(leadText || text, entry.time, defaultEndTime);
+    }
+
+    const lineObj = {
+      Lead: {
+        StartTime: entry.time,
+        EndTime: lineEndTime,
+        Syllables: leadSyllables,
+      },
+      OppositeAligned: false,
+    };
+
+    if (bgText) {
+      const bgSylls = splitLineToSyllables(bgText, entry.time, defaultEndTime);
+      lineObj.Background = {
+        StartTime: entry.time,
+        EndTime: defaultEndTime,
+        Syllables: bgSylls,
+      };
+    }
+
+    content.push(lineObj);
+  }
+
+  if (content.length === 0) return null;
+
+  return { Content: content, Type: "Syllable" };
+}

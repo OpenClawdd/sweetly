@@ -19,7 +19,7 @@
 
 > **Notice & Attribution**  
 > **Sweetly is a standalone fork of [Spicy Lyrics](https://github.com/Spikerko/spicy-lyrics) by [Spikerko](https://github.com/Spikerko)**, licensed under AGPL-3.0. The renderer UI, animation engine, and typography styling originate from Spicy Lyrics. Sweetly replaces the host platform (Spotify/Spicetify → standalone macOS Electron desktop app), swaps the player engine (`Spicetify.Player` → Apple Music via AppleScript), and adds an Apple Music catalog lyrics provider pipeline. See [NOTICE](./NOTICE) for complete details.  
-> *Not affiliated with or endorsed by Spikerko, Spicy Lyrics, or Apple Inc.*
+> _Not affiliated with or endorsed by Spikerko, Spicy Lyrics, or Apple Inc._
 
 ---
 
