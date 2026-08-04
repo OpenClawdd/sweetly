@@ -1,4 +1,5 @@
-import { SEARCH_UA, parseLrcToTTML } from "../utils.js";
+import { SEARCH_UA } from "../utils.js";
+import { parseLrcToTTML } from "../lrcSemantic.js";
 
 function normalize(str) {
   return String(str || "")
@@ -12,12 +13,6 @@ function matchTrack(results, name, artist) {
   const normName = normalize(name);
   const normArtist = normalize(artist);
   const primaryArtist = normArtist.split(" ")[0];
-
-  // Synced-only. LRCLIB often lists a tidily-titled plain-text row alongside a
-  // scrappier row that actually carries the LRC; scoring both together let the
-  // plain row win on metadata and then fail the `syncedLyrics` check below,
-  // throwing away timings that were available. Since a caller without synced
-  // lyrics gets nothing anyway, unsynced rows should never enter the contest.
   const candidates = (results || []).filter((r) => r.syncedLyrics);
   let bestMatch = null;
   let bestScore = -Infinity;
@@ -25,7 +20,6 @@ function matchTrack(results, name, artist) {
   for (const r of candidates) {
     const rName = normalize(r.trackName);
     const rArtist = normalize(r.artistName);
-
     let score = 0;
     if (rName === normName) score += 100;
     else if (rName.startsWith(normName) || normName.startsWith(rName)) score += 60;
@@ -37,12 +31,10 @@ function matchTrack(results, name, artist) {
       rArtist.includes(normArtist) ||
       normArtist.includes(rArtist) ||
       (primaryArtist && rArtist.includes(primaryArtist))
-    )
-      score += 30;
+    ) score += 30;
     else score -= 40;
 
     if (r.syncedLyrics) score += 20;
-
     if (score > bestScore) {
       bestScore = score;
       bestMatch = r;
@@ -61,9 +53,7 @@ export function clearLRCLibCache() {
 export async function fetchLRCLib(name, artist) {
   try {
     const cacheKey = `${name.toLowerCase()}:::${artist.toLowerCase()}`;
-    if (lrclibCache.has(cacheKey)) {
-      return lrclibCache.get(cacheKey);
-    }
+    if (lrclibCache.has(cacheKey)) return lrclibCache.get(cacheKey);
 
     const q = encodeURIComponent(`${name} ${artist}`);
     const res = await fetch(`https://lrclib.net/api/search?q=${q}`, {
