@@ -29,6 +29,7 @@ import {
   $currentLyricsData,
   $currentlyFetching,
 } from "../utils/stores.ts";
+import "./lyrics/titleMoments.ts";
 
 // Auto-scroll, reproducing app.tsx:765-769. All three modules are already
 // evaluated inside PageView.ts's subtree (PageView.ts:16-20 pulls
