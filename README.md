@@ -1,5 +1,4 @@
 <div align="center">
-  <img src="assets/icon.png" width="128" height="128" alt="Sweetly Icon" style="border-radius: 28px; margin-bottom: 12px;" />
   <h1>Sweetly</h1>
   <p><b>A floating, live-synced lyrics overlay for Apple Music on macOS.</b></p>
   <p>Syllable-level karaoke lyrics that sit smoothly over your desktop — powered by spring-physics animations, WebGL album-art blur backdrops, and native macOS vibrancy glass.</p>
